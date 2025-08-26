@@ -1,0 +1,8 @@
+# requirements.txt
+fastapi
+uvicorn[standard]
+neo4j
+pydantic-settings
+pytest
+PyYAML
+jinja2

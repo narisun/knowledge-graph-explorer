@@ -1,0 +1,42 @@
+# backend/queries.yaml
+
+default_graph:
+  display_name: "Default View"
+  description: "Shows a general, unfiltered view of interconnected nodes."
+  enabled: true
+  primary: >
+    MATCH (n)-[r]-(m)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
+    RETURN n, r, m
+    ORDER BY n.name
+    LIMIT toInteger($limit)
+  neighbors: >
+    MATCH (n)-[r]-(m)
+    WHERE elementId(n) = $node_id
+    RETURN n, r, m
+    LIMIT toInteger($limit)
+
+Payors_and_Payees:
+  display_name: "Payors & Payees"
+  description: "Focuses on Payors and the corresponding Payees they've interacted."
+  enabled: true
+  primary: >
+    MATCH (n:Party)-[r:MADE_PAYMENT]-(m:Party)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
+    RETURN n, r, m
+    ORDER BY r.amount DESC
+    LIMIT toInteger($limit)
+  neighbors: >
+    MATCH (n)-[r]-(m)
+    WHERE elementId(n) = $node_id
+    RETURN n, r, m
+    LIMIT toInteger($limit)
+
+disabled_example:
+  display_name: "Work in Progress Query"
+  description: "This query is not ready and is hidden from the UI."
+  enabled: false
+  primary: >
+    MATCH (n:Company)
+    RETURN n, {}, {} # Placeholder return
+    LIMIT 10

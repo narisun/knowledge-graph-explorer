@@ -1,0 +1,129 @@
+# backend/app/main.py
+import logging
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware # Add CORSMiddleware here
+from . import db, repository
+from .config import settings
+
+# --- Basic Setup (Logging, App Init) ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+app = FastAPI()
+
+# --- Mount static files and add templates ---
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates = Jinja2Templates(directory="app/templates")
+
+# --- Middleware, Lifecycle Events, and Dependency Injection ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.on_event("startup")
+def startup_event():
+    db.get_driver()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    db.close_driver()
+
+def get_repo():
+    return repository.GraphRepository(db.get_driver())
+
+# --- Root Endpoint to Serve the Frontend ---
+@app.get("/", include_in_schema=False)
+def serve_frontend(request: Request):
+    """Serves the main index.html file."""
+    return templates.TemplateResponse("index.html", {"request": request})
+
+# --- API Endpoints ---
+@app.get("/api/edges/{edge_id}/properties", summary="Get properties of a specific edge")
+def get_edge_properties(
+    edge_id: str,
+    repo: repository.GraphRepository = Depends(get_repo)
+):
+    """
+    Returns all properties of a single relationship as a JSON object.
+    """
+    try:
+        properties = repo.get_edge_properties(edge_id)
+        if properties is None:
+            raise HTTPException(status_code=404, detail="Edge not found or has no properties.")
+        return properties
+    except Exception as e:
+        if not isinstance(e, HTTPException):
+            logger.error(f"An error occurred while fetching properties for edge {edge_id}.", exc_info=True)
+            raise HTTPException(status_code=500, detail="An internal server error occurred.")
+        raise e
+
+@app.get("/api/connection-info", summary="Get current connection info")
+def get_connection_info():
+    return {
+        "user_name": settings.neo4j_user,
+        "database_name": settings.neo4j_database
+    }
+
+@app.get("/api/queries", summary="Get the list of available, enabled queries")
+def get_available_queries(repo: repository.GraphRepository = Depends(get_repo)):
+    try:
+        return repo.get_available_queries()
+    except Exception:
+        logger.error("An error occurred while fetching available queries.", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+@app.get("/api/search/{query_set_name}", summary="Search the graph using a named query set")
+def search_graph_data(
+    query_set_name: str,
+    request: Request,
+    repo: repository.GraphRepository = Depends(get_repo)
+):
+    try:
+        params = dict(request.query_params)
+        return repo.execute_query(query_set_name, "primary", params)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except PermissionError as pe:
+        raise HTTPException(status_code=403, detail=str(pe))
+    except Exception:
+        logger.error("An error occurred in the search graph endpoint.", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+@app.get("/api/nodes/{node_id}/neighbors", summary="Get neighbors of a specific node")
+def get_node_neighbors(
+    node_id: str,
+    request: Request,
+    repo: repository.GraphRepository = Depends(get_repo)
+):
+    try:
+        params = dict(request.query_params)
+        params["node_id"] = node_id
+        return repo.execute_query("default_graph", "neighbors", params)
+    except Exception:
+        logger.error(f"An error occurred while fetching neighbors for node {node_id}.", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+@app.get("/api/nodes/{node_id}/properties", summary="Get properties of a specific node")
+def get_node_properties(
+    node_id: str,
+    repo: repository.GraphRepository = Depends(get_repo)
+):
+    try:
+        properties = repo.get_node_properties(node_id)
+        if properties is None:
+            raise HTTPException(status_code=404, detail="Node not found or has no properties.")
+        return properties
+    except Exception as e:
+        if not isinstance(e, HTTPException):
+            logger.error(f"An error occurred while fetching properties for node {node_id}.", exc_info=True)
+            raise HTTPException(status_code=500, detail="An internal server error occurred.")
+        raise e
