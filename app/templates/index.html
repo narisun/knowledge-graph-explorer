@@ -57,21 +57,33 @@
                 <h3>Graph Controls</h3>
                 <div>
                     <div class="control-item">
+                        <label for="graph-layout-select">Graph Layout</label>
+                        <select id="graph-layout-select" class="control-select">
+                            <option value="cola" selected>Force-Cola (Default)</option>
+                            <option value="cose">Force-Cose</option>
+                            <option value="concentric">Concentric</option>
+                            <option value="circle">Circle</option>
+                            <option value="breadthfirst">Tree (Breadthfirst)</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
                         <label for="zoom-slider">Zoom</label>
                         <input type="range" id="zoom-slider" class="slider" min="0.1" max="3" step="0.1" value="1">
                     </div>
                     <div class="control-item">
-                        <label for="edge-length-slider">Edge Length</label>
+                        <label for="edge-length-slider">Edge Length (Cola)</label>
                         <input type="range" id="edge-length-slider" class="slider" min="30" max="300" step="10" value="120">
                     </div>
                     <div class="control-item">
-                        <label for="node-spacing-slider">Node Spacing</label>
-                        <input type="range" id="node-spacing-slider" class="slider" min="5" max="100" step="5" value="20">
+                        <label for="node-spacing-slider">Node Spacing (Cola)</label>
+                        <input type="range" id="node-spacing-slider" class="slider" min="5" max="100" step="5" value="30">
                     </div>
                 </div>
             </div>
         </div>
-    </div> <footer class="footer">&copy; 2025 Test Bank N.A.</footer>
+    </div> 
+    
+    <footer class="footer">&copy; 2025 TEST Bank N.A.</footer>
 
     <script src="/static/app.js"></script>
 

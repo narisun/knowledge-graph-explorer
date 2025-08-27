@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const NODE_PROPERTIES_API_URL_TEMPLATE = '/api/nodes/{node_id}/properties';
     const EDGE_PROPERTIES_API_URL_TEMPLATE = '/api/edges/{edge_id}/properties';
 
-    let colaLayoutConfig = { name: 'cola', animate: true, animationDuration: 1000, fit: true, padding: 30, nodeSpacing: 20, edgeLength: 120 };
     let currentQueryName = null;
 
     const cyContainer = document.getElementById('cy');
@@ -25,8 +24,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const textSearchInput = document.getElementById('text-search-input');
     const limitInput = document.getElementById('limit-input');
     const searchButton = document.getElementById('search-button');
+    const graphLayoutSelect = document.getElementById('graph-layout-select');
 
-    const colorPalette = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#A133FF', '#33FFA1', '#FFC300', '#C70039', '#900C3F', '#581845'];
+    const colorPalette = ['#5B8FF9', '#61DDAA', '#65789B', '#F6BD16', '#7262FD', '#78D3F8', '#9661BC', '#F6903D', '#008685', '#F08BB4'];
     const labelColorMap = {};
     let colorIndex = 0;
     function getColorForLabel(label) {
@@ -40,9 +40,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const cy = cytoscape({
         container: cyContainer,
         style: [
-            { selector: 'node', style: { 'background-color': (ele) => getColorForLabel(ele.data('label')), 'label': 'data(name)', 'text-opacity': 0, 'color': '#fff', 'text-outline-color': '#333', 'text-outline-width': 2, 'font-size': '14px', 'border-width': 0 } },
+            { selector: 'node', style: { 'background-color': (ele) => getColorForLabel(ele.data('label')), 'label': 'data(name)', 'text-opacity': 0, 'color': '#fff', 'text-outline-color': '#333', 'text-outline-width': 2, 'font-size': '12px', 'border-width': 0 } },
             { selector: 'node.labels-visible', style: { 'text-opacity': 1 } },
-            { selector: 'edge', style: { 'width': 2, 'line-color': '#ccc', 'target-arrow-color': '#ccc', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'label': 'data(label)', 'text-opacity': 0, 'font-size': '12px', 'color': '#555' } },
+            { selector: 'edge', style: { 'width': 1, 'target-arrow-shape': 'triangle', 'curve-style': 'unbundled-bezier', 'control-point-distances': '20', 'control-point-weights': '0.5', 'label': 'data(label)', 'text-opacity': 0, 'font-size': '10px', 'color': '#555', 'line-color': '#ccc', 'target-arrow-color': '#ccc', } },
             { selector: 'edge.labels-visible', style: { 'text-opacity': 1 } },
             { selector: '.selected', style: { 'border-width': 4, 'border-color': '#f1c40f' } }
         ]
@@ -53,11 +53,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     zoomSlider.addEventListener('input', (e) => cy.zoom(parseFloat(e.target.value)));
     cy.on('zoom', () => zoomSlider.value = cy.zoom());
+    
     function reRunLayout() {
-        colaLayoutConfig.edgeLength = parseInt(edgeLengthSlider.value);
-        colaLayoutConfig.nodeSpacing = parseInt(nodeSpacingSlider.value);
-        cy.layout(colaLayoutConfig).run();
+        const layoutName = graphLayoutSelect.value;
+        const options = {
+            name: layoutName,
+            animate: true,
+            padding: 30,
+            fit: true,
+            // Add layout-specific options from sliders
+            edgeLength: parseInt(edgeLengthSlider.value),
+            nodeSpacing: parseInt(nodeSpacingSlider.value),
+            nodeRepulsion: 400000, // Cose option
+            spacingFactor: 1.5 // Breadthfirst option
+        };
+        cy.layout(options).run();
     }
+    // Re-run layout when any control changes
+    graphLayoutSelect.addEventListener('change', reRunLayout);
     edgeLengthSlider.addEventListener('change', reRunLayout);
     nodeSpacingSlider.addEventListener('change', reRunLayout);
 
@@ -68,9 +81,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-            cy.add(data);
+            return cy.add(data);
         } catch (error) {
             console.error("Failed to fetch graph data:", error);
+            return cy.collection();
         } finally {
             hideLoader();
             cyContainer.style.opacity = 1;
@@ -105,12 +119,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    searchButton.addEventListener('click', () => {
-        if (currentQueryName) loadGraph(currentQueryName);
-    });
-    textSearchInput.addEventListener('keyup', (event) => {
-        if (event.key === 'Enter') searchButton.click();
-    });
+    searchButton.addEventListener('click', () => { if (currentQueryName) loadGraph(currentQueryName); });
+    textSearchInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') searchButton.click(); });
 
     async function populateNav() {
         const response = await fetch(QUERIES_API_URL);
@@ -163,15 +173,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // SIMPLIFIED: Double-click just fetches neighbors but doesn't run a special layout
     cy.on('dbltap', 'node', async function(evt) {
         clearTimeout(tapTimeout);
         const node = evt.target;
-        cy.nodes().lock();
-        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', node.id()) + '?limit=15';
+        const nodeId = node.id();
+        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + '?limit=15';
         await fetchDataAndRender(neighborsUrl);
-        const layout = cy.layout({ ...colaLayoutConfig, fit: false });
-        layout.one('layoutstop', () => cy.nodes().unlock());
-        layout.run();
+        // After adding nodes, re-run the currently selected main layout
+        reRunLayout();
     });
 
     async function fetchElementProperties(element) {
@@ -217,7 +227,6 @@ document.addEventListener('DOMContentLoaded', function() {
             placement: 'bottom',
             hideOnClick: false,
             allowHTML: true,
-            // --- UPDATED: Apply the new theme ---
             theme: 'translucent'
         });
         return tip;

@@ -1,4 +1,4 @@
-/* frontend/styles.css */
+/* backend/app/static/styles.css */
 html, body {
     margin: 0;
     padding: 0;
@@ -41,7 +41,6 @@ html, body {
     border-top: 1px solid #ddd;
 }
 
-/* --- NEW: Main Content Wrapper --- */
 .main-content {
     position: absolute;
     top: 50px;
@@ -50,7 +49,6 @@ html, body {
     display: flex;
 }
 
-/* --- UPDATED: Columns are now relative within the wrapper --- */
 .left-nav {
     position: relative;
     width: 18em;
@@ -58,7 +56,7 @@ html, body {
     border-right: 1px solid #ddd;
     box-sizing: border-box;
     overflow-y: auto;
-    flex-shrink: 0; /* Prevent from shrinking */
+    flex-shrink: 0;
 }
 .left-nav h3 {
     color: #003366;
@@ -76,7 +74,7 @@ html, body {
     position: relative;
     display: flex;
     flex-direction: column;
-    flex-grow: 1; /* Take up remaining space */
+    flex-grow: 1;
 }
 
 .center-header {
@@ -89,7 +87,6 @@ html, body {
     box-sizing: border-box;
     flex-shrink: 0;
 }
-
 .center-header .query-title { font-size: 1.2em; font-weight: bold; color: #003366; margin-right: auto; }
 .center-header .search-controls { display: flex; align-items: center; gap: 1em; }
 .center-header .search-controls input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; }
@@ -137,7 +134,7 @@ html, body {
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    flex-shrink: 0; /* Prevent from shrinking */
+    flex-shrink: 0;
 }
 .properties-section { flex: 1; overflow-y: auto; border-bottom: 1px solid #ddd; }
 .controls-section { flex-shrink: 0; background-color: #f8f9fa; }
@@ -153,6 +150,14 @@ html, body {
 .control-item { margin-bottom: 1em; }
 .control-item label { display: block; font-size: 0.9em; margin-bottom: 0.5em; color: #333; }
 .slider { display: block; width: 100%; margin: 0; }
+.control-select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9em;
+    background-color: white;
+}
 
 .selected {
     border-width: 4px;
