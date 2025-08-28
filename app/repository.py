@@ -19,7 +19,8 @@ class GraphRepository:
 
     def get_available_queries(self) -> list[dict]:
         """
-        Returns a list of all enabled queries with their metadata.
+        Returns a list of all enabled queries with their metadata,
+        including the caption property.
         """
         available_queries = []
         for name, details in self.query_sets.items():
@@ -27,7 +28,9 @@ class GraphRepository:
                 available_queries.append({
                     "name": name,
                     "display_name": details.get("display_name", name.replace('_', ' ').title()),
-                    "description": details.get("description", "")
+                    "description": details.get("description", ""),
+                    "caption_property": details.get("caption_property", "name"),
+                    "mapping": details.get("mapping", {})
                 })
         return available_queries
 
@@ -37,21 +40,14 @@ class GraphRepository:
         """
         query = "MATCH (n) WHERE elementId(n) = $node_id RETURN n"
         params = {"node_id": node_id}
-        
-        logger.info(f"Executing properties query with params: {params}")
         try:
             with self.driver.session() as session:
                 result = session.run(query, params)
                 record = result.single()
-            
             if record and len(record) > 0:
                 node = record[0]
                 if hasattr(node, 'labels'):
-                    properties = dict(node.items())
-                    logger.info(f"Found properties for node {node_id}")
-                    return properties
-            
-            logger.warning(f"No node record found for node {node_id}")
+                    return dict(node.items())
             return None
         except Exception:
             logger.error(f"An exception occurred fetching properties for node {node_id}", exc_info=True)
@@ -63,23 +59,14 @@ class GraphRepository:
         """
         query = "MATCH ()-[r]-() WHERE elementId(r) = $edge_id RETURN properties(r) LIMIT 1"
         params = {"edge_id": edge_id}
-        
-        logger.info(f"Executing edge properties query with params: {params}")
         try:
             with self.driver.session() as session:
                 result = session.run(query, params)
                 record = result.peek()
-
-            # --- FIX: Access the returned properties by position (index 0) ---
             if record and len(record) > 0:
-                props = record[0] # Access the first column by index
-                
-                # Verify that we received a dictionary
+                props = record[0]
                 if isinstance(props, dict):
-                    logger.info(f"Found properties for edge {edge_id}")
                     return props
-            
-            logger.warning(f"No properties record found for edge {edge_id}")
             return None
         except Exception:
             logger.error(f"An exception occurred fetching properties for edge {edge_id}", exc_info=True)
@@ -89,17 +76,22 @@ class GraphRepository:
         """
         Selects and executes a pre-defined Cypher query with the given parameters.
         """
-        if query_set_name not in self.query_sets:
-            raise ValueError(f"Query set '{query_set_name}' not found.")
-
-        query_set = self.query_sets[query_set_name]
-        
+        query_set = self.query_sets.get(query_set_name, {})
         if not query_set.get("enabled", False):
-            raise PermissionError(f"Query set '{query_set_name}' is disabled.")
-        if query_type not in query_set:
-            raise ValueError(f"Query type '{query_type}' not found in query set '{query_set_name}'.")
+            raise PermissionError(f"Query set '{query_set_name}' is disabled or does not exist.")
+        
+        mapping = query_set.get("mapping", {})
 
-        query = query_set[query_type]
+        if query_type == "neighbors":
+            node_type = params.get("node_type")
+            neighbor_queries = query_set.get("neighbors", {})
+            query = neighbor_queries.get(node_type, neighbor_queries.get("_default"))
+            if not query:
+                raise ValueError(f"No suitable neighbor query found for node type '{node_type}'.")
+        else: # For 'primary' queries
+            query = query_set.get(query_type)
+            if not query:
+                 raise ValueError(f"Query type '{query_type}' not found in query set '{query_set_name}'.")
         
         params.setdefault("limit", 25)
         params.setdefault("text_search", None)
@@ -112,26 +104,37 @@ class GraphRepository:
             records = list(result)
             
         logger.info(f"Query returned {len(records)} records.")
-        
-        return self._nodes_to_cytoscape_format(records)
+        return self._nodes_to_cytoscape_format(records, mapping)
 
-    def _nodes_to_cytoscape_format(self, records: list[Record]) -> list[dict]:
-        """Robustly formats Neo4j records for Cytoscape.js."""
-        nodes, edges = {}, {}
+    def _nodes_to_cytoscape_format(self, records: list[Record], mapping: dict) -> list[dict]:
+        nodes, edges, parent_nodes = {}, {}, set()
+        
+        node_size_prop = mapping.get("node_size")
+        node_community_prop = mapping.get("node_community")
+        edge_weight_prop = mapping.get("edge_weight")
+
         for record in records:
             for _, value in record.items():
                 if value is None: continue
                 if hasattr(value, 'labels'): # It's a Node
                     node_id = value.element_id
                     if node_id not in nodes:
-                        nodes[node_id] = {"data": {"id": node_id, "label": list(value.labels)[0] if value.labels else "Node", "name": value.get("name", "Unnamed")}}
+                        node_data = { "id": node_id, "label": list(value.labels)[0] if value.labels else "Node", "name": value.get("name", "Unnamed") }
+                        if node_size_prop and value.get(node_size_prop) is not None:
+                            node_data["size"] = value.get(node_size_prop)
+                        if node_community_prop and value.get(node_community_prop) is not None:
+                            community_id = str(value.get(node_community_prop))
+                            node_data["parent"] = community_id
+                            parent_nodes.add(community_id)
+                        nodes[node_id] = {"data": node_data}
+
                 elif hasattr(value, 'start_node'): # It's a Relationship
                     edge_id = value.element_id
                     if edge_id not in edges:
-                        edges[edge_id] = {"data": {"id": edge_id, "source": value.start_node.element_id, "target": value.end_node.element_id, "label": type(value).__name__}}
-                        start_node, end_node = value.start_node, value.end_node
-                        if start_node.element_id not in nodes:
-                            nodes[start_node.element_id] = {"data": {"id": start_node.element_id, "label": list(start_node.labels)[0] if start_node.labels else "Node", "name": start_node.get("name", "Unnamed")}}
-                        if end_node.element_id not in nodes:
-                             nodes[end_node.element_id] = {"data": {"id": end_node.element_id, "label": list(end_node.labels)[0] if end_node.labels else "Node", "name": end_node.get("name", "Unnamed")}}
-        return list(nodes.values()) + list(edges.values())
+                        edge_data = { "id": edge_id, "source": value.start_node.element_id, "target": value.end_node.element_id, "label": type(value).__name__ }
+                        if edge_weight_prop and value.get(edge_weight_prop) is not None:
+                            edge_data["weight"] = value.get(edge_weight_prop)
+                        edges[edge_id] = {"data": edge_data}
+        
+        compound_nodes = [{"data": {"id": pid}} for pid in parent_nodes]
+        return list(nodes.values()) + list(edges.values()) + compound_nodes

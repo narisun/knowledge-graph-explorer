@@ -1,13 +1,12 @@
-# backend/app/main.py
+# app/main.py
 import logging
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware # Add CORSMiddleware here
+from fastapi.middleware.cors import CORSMiddleware
 from . import db, repository
 from .config import settings
 
-# --- Basic Setup (Logging, App Init) ---
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -16,11 +15,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 app = FastAPI()
 
-# --- Mount static files and add templates ---
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# --- Middleware, Lifecycle Events, and Dependency Injection ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,31 +37,12 @@ def shutdown_event():
 def get_repo():
     return repository.GraphRepository(db.get_driver())
 
-# --- Root Endpoint to Serve the Frontend ---
 @app.get("/", include_in_schema=False)
 def serve_frontend(request: Request):
     """Serves the main index.html file."""
     return templates.TemplateResponse("index.html", {"request": request})
 
 # --- API Endpoints ---
-@app.get("/api/edges/{edge_id}/properties", summary="Get properties of a specific edge")
-def get_edge_properties(
-    edge_id: str,
-    repo: repository.GraphRepository = Depends(get_repo)
-):
-    """
-    Returns all properties of a single relationship as a JSON object.
-    """
-    try:
-        properties = repo.get_edge_properties(edge_id)
-        if properties is None:
-            raise HTTPException(status_code=404, detail="Edge not found or has no properties.")
-        return properties
-    except Exception as e:
-        if not isinstance(e, HTTPException):
-            logger.error(f"An error occurred while fetching properties for edge {edge_id}.", exc_info=True)
-            raise HTTPException(status_code=500, detail="An internal server error occurred.")
-        raise e
 
 @app.get("/api/connection-info", summary="Get current connection info")
 def get_connection_info():
@@ -101,12 +79,18 @@ def search_graph_data(
 @app.get("/api/nodes/{node_id}/neighbors", summary="Get neighbors of a specific node")
 def get_node_neighbors(
     node_id: str,
+    node_type: str, # node_type is now a required parameter
     request: Request,
     repo: repository.GraphRepository = Depends(get_repo)
 ):
+    """
+    Executes the 'neighbors' query from the 'default_graph' query set,
+    selecting the appropriate query based on the node's type (label).
+    """
     try:
         params = dict(request.query_params)
         params["node_id"] = node_id
+        params["node_type"] = node_type
         return repo.execute_query("default_graph", "neighbors", params)
     except Exception:
         logger.error(f"An error occurred while fetching neighbors for node {node_id}.", exc_info=True)
@@ -125,5 +109,21 @@ def get_node_properties(
     except Exception as e:
         if not isinstance(e, HTTPException):
             logger.error(f"An error occurred while fetching properties for node {node_id}.", exc_info=True)
+            raise HTTPException(status_code=500, detail="An internal server error occurred.")
+        raise e
+
+@app.get("/api/edges/{edge_id}/properties", summary="Get properties of a specific edge")
+def get_edge_properties(
+    edge_id: str,
+    repo: repository.GraphRepository = Depends(get_repo)
+):
+    try:
+        properties = repo.get_edge_properties(edge_id)
+        if properties is None:
+            raise HTTPException(status_code=404, detail="Edge not found or has no properties.")
+        return properties
+    except Exception as e:
+        if not isinstance(e, HTTPException):
+            logger.error(f"An error occurred while fetching properties for edge {edge_id}.", exc_info=True)
             raise HTTPException(status_code=500, detail="An internal server error occurred.")
         raise e

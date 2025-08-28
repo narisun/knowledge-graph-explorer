@@ -136,8 +136,46 @@ html, body {
     flex-direction: column;
     flex-shrink: 0;
 }
-.properties-section { flex: 1; overflow-y: auto; border-bottom: 1px solid #ddd; }
-.controls-section { flex-shrink: 0; background-color: #f8f9fa; }
+.properties-section { flex-grow: 1; overflow-y: auto; } /* Let properties section grow */
+.controls-section, .legend-section { flex-shrink: 0; } /* Prevent controls and legend from shrinking */
+
+/* --- NEW: Legend Styles --- */
+.legend-section {
+    background-color: #f8f9fa;
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+}
+.legend-section h3, .controls-section h3 {
+    margin-top: 0;
+    padding: 1em 1em 1em 1em;
+    color: #003366;
+    border-bottom: none;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5em;
+    font-size: 0.9em;
+}
+.legend-color-box {
+    width: 15px;
+    height: 15px;
+    border: 1px solid #ccc;
+    margin-right: 0.5em;
+    flex-shrink: 0;
+}
+#legend-content {
+    padding: 0 1em 1em 1em;
+}
+
+
+.properties-section h2 {
+    margin-top: 0;
+    padding: 1em 1em 1em 1em;
+    color: #003366;
+    border-bottom: none;
+}
+
 .properties-section h2, .controls-section h3 {
     margin-top: 0;
     padding: 1em 1em 1em 1em;
@@ -177,4 +215,17 @@ html, body {
 }
 .tippy-box[data-theme~='translucent'][data-placement^='bottom'] > .tippy-arrow::before {
   border-bottom-color: #ddd;
+}
+
+:parent {
+    background-color: #e0e0e0;
+    background-opacity: 0.333;
+    border-color: #a0a0a0;
+    border-width: 1px;
+    font-size: 16px;
+    color: #555;
+    text-valign: top;
+    text-halign: center;
+    padding: 15px;
+    label: data(id); /* Display the community ID as the box label */
 }

@@ -1,4 +1,4 @@
-// backend/app/static/app.js
+// app/static/app.js
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof cytoscape('core', 'popperRef') === 'undefined') {
         cytoscape.use(cytoscapePopper);
@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const NODE_PROPERTIES_API_URL_TEMPLATE = '/api/nodes/{node_id}/properties';
     const EDGE_PROPERTIES_API_URL_TEMPLATE = '/api/edges/{edge_id}/properties';
 
-    let currentQueryName = null;
+    let currentQuery = {};
 
     const cyContainer = document.getElementById('cy');
     const loader = document.getElementById('loader');
@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const limitInput = document.getElementById('limit-input');
     const searchButton = document.getElementById('search-button');
     const graphLayoutSelect = document.getElementById('graph-layout-select');
+    const legendContent = document.getElementById('legend-content');
 
     const colorPalette = ['#5B8FF9', '#61DDAA', '#65789B', '#F6BD16', '#7262FD', '#78D3F8', '#9661BC', '#F6903D', '#008685', '#F08BB4'];
     const labelColorMap = {};
@@ -40,11 +41,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const cy = cytoscape({
         container: cyContainer,
         style: [
-            { selector: 'node', style: { 'background-color': (ele) => getColorForLabel(ele.data('label')), 'label': 'data(name)', 'text-opacity': 0, 'color': '#fff', 'text-outline-color': '#333', 'text-outline-width': 2, 'font-size': '12px', 'border-width': 0 } },
+            { 
+                selector: 'node', 
+                style: { 
+                    'background-color': (ele) => getColorForLabel(ele.data('label')), 
+                    'label': (ele) => ele.data(currentQuery.caption_property) || ele.data('name'),
+                    // --- UPDATED: Node sizes reduced by ~50% ---
+                    'width': (ele) => ele.data('relative_size') ? 8 + ele.data('relative_size') * 20 : 13,
+                    'height': (ele) => ele.data('relative_size') ? 8 + ele.data('relative_size') * 20 : 13,
+                    'text-opacity': 0, 'color': '#333', 'font-size': '10px', 'border-width': 0 
+                } 
+            },
             { selector: 'node.labels-visible', style: { 'text-opacity': 1 } },
-            { selector: 'edge', style: { 'width': 1, 'target-arrow-shape': 'triangle', 'curve-style': 'unbundled-bezier', 'control-point-distances': '20', 'control-point-weights': '0.5', 'label': 'data(label)', 'text-opacity': 0, 'font-size': '10px', 'color': '#555', 'line-color': '#ccc', 'target-arrow-color': '#ccc', } },
+            { 
+                selector: 'edge', 
+                style: { 
+                    'width': (ele) => ele.data('weight') ? Math.min(Math.max(ele.data('weight'), 1), 10) : 1,
+                    'target-arrow-shape': 'triangle', 'curve-style': 'unbundled-bezier',
+                    'line-color': '#ccc', 'target-arrow-color': '#ccc', 'label': 'data(label)',
+                    'text-opacity': 0, 'font-size': '9px', 'color': '#555'
+                } 
+            },
             { selector: 'edge.labels-visible', style: { 'text-opacity': 1 } },
-            { selector: '.selected', style: { 'border-width': 4, 'border-color': '#f1c40f' } }
+            { selector: '.selected', style: { 'border-width': 4, 'border-color': '#f1c40f' } },
+            {
+                selector: ':parent',
+                style: {
+                    'background-opacity': 0.333, 'background-color': '#e0e0e0',
+                    'border-color': '#a0a0a0', 'border-width': 1, 'font-size': 16,
+                    'color': '#555', 'text-valign': 'top', 'text-halign': 'center',
+                    'padding': '15px', 'label': 'data(id)'
+                }
+            }
         ]
     });
     
@@ -59,20 +87,65 @@ document.addEventListener('DOMContentLoaded', function() {
         const options = {
             name: layoutName,
             animate: true,
-            padding: 30,
+            padding: 50,
             fit: true,
-            // Add layout-specific options from sliders
+            idealEdgeLength: parseInt(edgeLengthSlider.value),
             edgeLength: parseInt(edgeLengthSlider.value),
+            nodeSeparation: parseInt(nodeSpacingSlider.value),
             nodeSpacing: parseInt(nodeSpacingSlider.value),
-            nodeRepulsion: 400000, // Cose option
-            spacingFactor: 1.5 // Breadthfirst option
+            spacingFactor: 1.5,
+            nodeOverlap: 20,
+            nodeRepulsion: 400000
         };
         cy.layout(options).run();
     }
-    // Re-run layout when any control changes
     graphLayoutSelect.addEventListener('change', reRunLayout);
     edgeLengthSlider.addEventListener('change', reRunLayout);
     nodeSpacingSlider.addEventListener('change', reRunLayout);
+    
+    function updateLegend() {
+        legendContent.innerHTML = '';
+        const displayedLabels = new Set();
+        cy.nodes().forEach(node => {
+            const label = node.data('label');
+            if (label && !displayedLabels.has(label)) {
+                displayedLabels.add(label);
+                const color = getColorForLabel(label);
+                const legendItem = document.createElement('div');
+                legendItem.classList.add('legend-item');
+                legendItem.innerHTML = `<div class="legend-color-box" style="background-color: ${color};"></div><span>${label}</span>`;
+                legendContent.appendChild(legendItem);
+            }
+        });
+    }
+
+    function calculateRelativeSizes() {
+        const sizeProperty = currentQuery.mapping?.node_size;
+        if (!sizeProperty) {
+            cy.nodes().forEach(node => node.data('relative_size', 0.5));
+            return;
+        }
+
+        const maxSizes = {};
+        cy.nodes().forEach(node => {
+            const label = node.data('label');
+            const size = node.data('size') || 0;
+            if (!maxSizes[label] || size > maxSizes[label]) {
+                maxSizes[label] = size;
+            }
+        });
+
+        cy.nodes().forEach(node => {
+            const label = node.data('label');
+            const size = node.data('size') || 0;
+            const maxSize = maxSizes[label];
+            if (maxSize > 0) {
+                node.data('relative_size', size / maxSize);
+            } else {
+                node.data('relative_size', 0.5);
+            }
+        });
+    }
 
     async function fetchDataAndRender(url) {
         showLoader();
@@ -81,7 +154,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-            return cy.add(data);
+            const addedElements = cy.add(data);
+            updateLegend();
+            return addedElements;
         } catch (error) {
             console.error("Failed to fetch graph data:", error);
             return cy.collection();
@@ -91,8 +166,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    async function loadGraph(queryName) {
-        currentQueryName = queryName;
+    async function loadGraph(query) {
+        currentQuery = query;
         cy.elements().remove();
         propertiesTitle.textContent = "Properties";
         propertiesPanel.innerHTML = `<p>Click a node or edge to see its properties.</p>`;
@@ -100,17 +175,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const limit = limitInput.value;
         const textSearch = textSearchInput.value;
 
-        let searchUrl = SEARCH_API_URL_TEMPLATE.replace('{query_name}', queryName) + `?limit=${limit}`;
+        let searchUrl = SEARCH_API_URL_TEMPLATE.replace('{query_name}', query.name) + `?limit=${limit}`;
         if (textSearch) {
             searchUrl += `&text_search=${encodeURIComponent(textSearch)}`;
         }
         
         await fetchDataAndRender(searchUrl);
-        reRunLayout();
-        handleZoom();
+        calculateRelativeSizes();
+        
+        const layout = cy.layout({name: graphLayoutSelect.value, fit: true, padding: 50});
+        layout.one('layoutstop', handleZoom);
+        layout.run();
         
         document.querySelectorAll('#query-list li').forEach(li => {
-            if (li.dataset.queryName === queryName) {
+            if (li.dataset.queryName === query.name) {
                 li.classList.add('active');
                 queryTitle.textContent = li.firstChild.textContent.trim();
             } else {
@@ -119,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    searchButton.addEventListener('click', () => { if (currentQueryName) loadGraph(currentQueryName); });
+    searchButton.addEventListener('click', () => { if (currentQuery.name) loadGraph(currentQuery); });
     textSearchInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') searchButton.click(); });
 
     async function populateNav() {
@@ -132,12 +210,12 @@ document.addEventListener('DOMContentLoaded', function() {
             listItem.innerHTML = ` ${query.display_name} <div class="nav-item-desc">${query.description}</div> `;
             listItem.addEventListener('click', () => {
                 textSearchInput.value = "";
-                loadGraph(query.name);
+                loadGraph(query);
             });
             queryList.appendChild(listItem);
         });
         if (queries.length > 0) {
-            await loadGraph(queries[0].name);
+            await loadGraph(queries[0]);
         } else {
             hideLoader();
         }
@@ -151,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        propertiesTitle.textContent = element.isNode() ? (props.name || "Node Properties") : (element.data('label') || "Edge Properties");
+        propertiesTitle.textContent = element.isNode() ? (props[currentQuery.caption_property] || props.name || "Node Properties") : (element.data('label') || "Edge Properties");
         let html = '<ul>';
         for (const [key, value] of Object.entries(props)) {
             html += `<li><strong>${key}:</strong> ${value}</li>`;
@@ -173,14 +251,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // SIMPLIFIED: Double-click just fetches neighbors but doesn't run a special layout
     cy.on('dbltap', 'node', async function(evt) {
         clearTimeout(tapTimeout);
         const node = evt.target;
         const nodeId = node.id();
-        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + '?limit=15';
+        const nodeType = node.data('label');
+        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}`;
         await fetchDataAndRender(neighborsUrl);
-        // After adding nodes, re-run the currently selected main layout
+        calculateRelativeSizes();
         reRunLayout();
     });
 
@@ -206,12 +284,14 @@ document.addEventListener('DOMContentLoaded', function() {
             trigger: 'manual',
             content: () => {
                 const content = document.createElement('div');
-                content.innerHTML = `<b>${element.data('name') || element.data('label')}</b><p>Loading properties...</p>`;
+                const caption = element.data(currentQuery.caption_property) || element.data('name') || element.data('label');
+                content.innerHTML = `<b>${caption}</b><p>Loading properties...</p>`;
                 return content;
             },
             onShow: async (instance) => {
                 const props = await fetchElementProperties(element);
-                let content = `<b>${element.data('name') || element.data('label')}</b>`;
+                const caption = element.data(currentQuery.caption_property) || element.data('name') || element.data('label');
+                let content = `<b>${caption}</b>`;
                 if (props) {
                     content += '<hr style="margin: 2px 0;"><ul>';
                     for (const [key, value] of Object.entries(props)) {
@@ -231,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         return tip;
     }
-
+    
     cy.on('mouseover', 'node, edge', (evt) => {
         const element = evt.target;
         element.data('tooltip', makeTooltip(element));
@@ -247,8 +327,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const labelThreshold = 1.2;
     function handleZoom() {
-        if (cy.zoom() > labelThreshold) cy.elements().addClass('labels-visible');
-        else cy.elements().removeClass('labels-visible');
+        if (cy.zoom() > labelThreshold) {
+            cy.elements().addClass('labels-visible');
+        } else {
+            cy.elements().removeClass('labels-visible');
+        }
     }
     cy.on('zoom pan', handleZoom);
     

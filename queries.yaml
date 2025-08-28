@@ -1,42 +1,75 @@
-# backend/queries.yaml
+# queries.yaml
 
 default_graph:
-  display_name: "Default View"
-  description: "Shows a general, unfiltered view of interconnected nodes."
+  display_name: "Default View (by Degree)"
+  description: "Node size is based on the number of connections (degree)."
   enabled: true
+  caption_property: "name"
+  mapping:
+    node_size: "degree"
   primary: >
+    MATCH (n)
+    WITH n, COUNT { (n)--() } AS degree
+    SET n.degree = degree, n.community = labels(n)[0]
+    WITH n
     MATCH (n)-[r]-(m)
     WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
     RETURN n, r, m
-    ORDER BY n.name
+    ORDER BY n.degree DESC
     LIMIT toInteger($limit)
-  neighbors: >
-    MATCH (n)-[r]-(m)
-    WHERE elementId(n) = $node_id
-    RETURN n, r, m
-    LIMIT toInteger($limit)
+  neighbors: 
+    _default: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Party: >
+      MATCH (n:Party)-[r:MADE_PAYMENT]-(m:Party)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    FinancialInstitution: >
+      MATCH (n:FinancialInstitution)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
 
-Payors_and_Payees:
-  display_name: "Payors & Payees"
-  description: "Focuses on Payors and the corresponding Payees they've interacted."
+actors_and_movies:
+  display_name: "Actors & Movies (by Centrality)"
+  description: "Node size is based on PageRank centrality within this map."
   enabled: true
+  caption_property: "name"
+  mapping:
+    node_size: "pagerank"
+    node_community: "community"
+    edge_weight: "weight"
   primary: >
-    MATCH (n:Party)-[r:MADE_PAYMENT]-(m:Party)
-    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
-    RETURN n, r, m
-    ORDER BY r.amount DESC
+    MATCH (n:Person)-[r:ACTED_IN]-(m:Movie)
+    WITH collect(n) as persons, collect(m) as movies, collect(r) as rels
+    WITH apoc.coll.toSet(persons + movies) as allNodes, rels as allRels
+    UNWIND allNodes as node
+    WITH node, 
+         CASE WHEN node:Person THEN 1.0 ELSE 0.2 END AS pagerank,
+         CASE WHEN node:Person THEN "Actors" ELSE "Movies" END AS community
+    SET node.pagerank = pagerank, node.community = community
+    WITH node
+    MATCH (node)-[r]-(m)
+    WHERE (node.name CONTAINS $text_search OR m.title CONTAINS $text_search OR $text_search IS NULL)
+    RETURN node as n, r, m
     LIMIT toInteger($limit)
-  neighbors: >
-    MATCH (n)-[r]-(m)
-    WHERE elementId(n) = $node_id
-    RETURN n, r, m
-    LIMIT toInteger($limit)
-
-disabled_example:
-  display_name: "Work in Progress Query"
-  description: "This query is not ready and is hidden from the UI."
-  enabled: false
-  primary: >
-    MATCH (n:Company)
-    RETURN n, {}, {} # Placeholder return
-    LIMIT 10
+  neighbors: 
+    _default: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Person: >
+      MATCH (n:Person)-[r:ACTED_IN]-(m:Movie)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Movie: >
+      MATCH (n:Movie)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)

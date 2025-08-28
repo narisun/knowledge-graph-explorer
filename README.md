@@ -54,11 +54,11 @@ pip install -r requirements.txt
 
 The application requires a connection to a Neo4j database.
 
-1.  In the `backend` directory, create a new file named `.env`.
+1.  In the project root directory, create a new file named `.env`.
 2.  Copy the contents of the example below into your new `.env` file and update the values to match your Neo4j database credentials.
 
 ```ini
-# backend/.env
+# .env
 NEO4J_URI="bolt://localhost:7687"
 NEO4J_USER="neo4j"
 NEO4J_PASSWORD="your_secret_password"
