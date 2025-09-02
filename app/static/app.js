@@ -6,8 +6,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const INFO_API_URL = '/api/connection-info';
     const QUERIES_API_URL = '/api/queries';
-function setActiveQueryKey(key){ const i=document.getElementById('current-query-key'); if(i){ i.value = key || ''; } }
-
     const SEARCH_API_URL_TEMPLATE = '/api/search/{query_name}';
     const NEIGHBORS_API_URL_TEMPLATE = '/api/nodes/{node_id}/neighbors';
     const NODE_PROPERTIES_API_URL_TEMPLATE = '/api/nodes/{node_id}/properties';
@@ -90,7 +88,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             name: layoutName,
             animate: true,
             padding: 50,
-            fit: false,
+            fit: true,
             idealEdgeLength: parseInt(edgeLengthSlider.value),
             edgeLength: parseInt(edgeLengthSlider.value),
             nodeSeparation: parseInt(nodeSpacingSlider.value),
@@ -170,7 +168,6 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
 
     async function loadGraph(query) {
         currentQuery = query;
-        try { setActiveQueryKey(query.name); } catch(e) {}
         cy.elements().remove();
         propertiesTitle.textContent = "Properties";
         propertiesPanel.innerHTML = `<p>Click a node or edge to see its properties.</p>`;
@@ -186,7 +183,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         await fetchDataAndRender(searchUrl);
         calculateRelativeSizes();
         
-        const layout = cy.layout({name: graphLayoutSelect.value, fit: false, padding: 50});
+        const layout = cy.layout({name: graphLayoutSelect.value, fit: true, padding: 50});
         layout.one('layoutstop', handleZoom);
         layout.run();
         
@@ -255,52 +252,93 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     });
 
     
-    async function locallyLayoutNewNeighbors(centerNode, addedElements) {
-        try {
-            const newNodes = addedElements.filter('node');
-            if (newNodes.empty()) return;
+async function locallyLayoutNewNeighbors(centerNode, addedElements) {
+    const newNodes = addedElements.filter('node');
+    if (newNodes.empty()) return;
 
-            // Position new nodes initially at the center node to smooth the animation
-            const p = centerNode.position();
-            newNodes.positions(() => ({ x: p.x, y: p.y }));
+    const others = cy.nodes().difference(newNodes);
+    others.lock();
+    try {
+        const cpos = centerNode.position();
+        newNodes.positions(() => ({ x: cpos.x, y: cpos.y }));
 
-            // Lock all other nodes so they don't move
-            const toKeepStill = cy.nodes().difference(newNodes).difference(centerNode);
-            toKeepStill.lock();
+        const spacing = parseInt(nodeSpacingSlider.value) || 30;
+        const minSep = Math.max(24, spacing);
+        const stepOut = Math.max(40, spacing);
+        const maxPush = 10;
 
-            // Compute a bounded box around the center node so layout only happens locally
-            const radius = Math.max(150, parseInt(nodeSpacingSlider.value) * 2);
-            const bb = { x1: p.x - radius, y1: p.y - radius, x2: p.x + radius, y2: p.y + radius };
+        const bb = cy.nodes().boundingBox();
+        const graphCenter = { x: (bb.x1 + bb.x2) / 2, y: (bb.y1 + bb.y2) / 2 };
+        let dir = { x: cpos.x - graphCenter.x, y: cpos.y - graphCenter.y };
+        const dirLen = Math.hypot(dir.x, dir.y) || 1;
+        dir = { x: dir.x / dirLen, y: dir.y / dirLen };
 
-            // Run a quick concentric layout on new nodes + the center node
-            const layout = cy.layout({
-                name: 'concentric',
-                eles: newNodes.union(centerNode),
-                animate: true,
-                animationDuration: 300,
-                fit: false,
-                boundingBox: bb,
-                avoidOverlap: true,
-                concentric: (ele) => ele.id() === centerNode.id() ? 2 : 1,
-                levelWidth: () => 1,
-                minNodeSpacing: parseInt(nodeSpacingSlider.value) || 20
-            });
+        let maxLocal = 0;
+        others.forEach(o => {
+            const p = o.position();
+            const d = Math.hypot(p.x - cpos.x, p.y - cpos.y);
+            if (d > maxLocal) maxLocal = d;
+        });
+        let baseR = maxLocal + spacing * 2 + 40;
 
-            await new Promise(resolve => { layout.one('layoutstop', resolve); layout.run(); });
+        const newNs = [];
+        newNodes.forEach(n => newNs.push(n));
 
-        } finally {
-            // Always unlock others, even if layout errors
-            cy.nodes().unlock();
+        const existingPositions = [];
+        others.forEach(o => existingPositions.push(o.position()));
+
+        function nearestDist(pos) {
+            let min = Infinity;
+            for (let i = 0; i < existingPositions.length; i++) {
+                const p = existingPositions[i];
+                const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+                if (d < min) min = d;
+            }
+            return min;
         }
-    }
-    
 
-    cy.on('dbltap', 'node', async function(evt) {
+        const centerAngle = Math.atan2(dir.y, dir.x);
+        const count = newNs.length;
+        const spread = Math.min(Math.PI * 0.9, Math.max(0.6, (count - 1) * 0.25));
+
+        for (let i = 0; i < count; i++) {
+            const t = (count === 1) ? 0.5 : (i / (count - 1));
+            const angle = centerAngle - spread / 2 + spread * t;
+
+            let r = baseR + (i % 3) * (spacing * 0.6);
+
+            let attempts = 0;
+            let finalPos = null;
+            while (attempts < maxPush) {
+                const pos = {
+                    x: cpos.x + Math.cos(angle) * r,
+                    y: cpos.y + Math.sin(angle) * r
+                };
+                if (nearestDist(pos) >= minSep) {
+                    finalPos = pos;
+                    break;
+                }
+                r += stepOut;
+                attempts++;
+            }
+            if (!finalPos) {
+                finalPos = { x: cpos.x + Math.cos(angle) * r, y: cpos.y + Math.sin(angle) * r };
+            }
+
+            await newNs[i].animate({ position: finalPos }, { duration: 280, queue: false }).promise();
+        }
+
+    } finally {
+        cy.nodes().unlock();
+    }
+}
+
+cy.on('dbltap', 'node', async function(evt) {
         clearTimeout(tapTimeout);
         const node = evt.target;
         const nodeId = node.id();
         const nodeType = node.data('label');
-        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
+        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}`;
         const added = await fetchDataAndRender(neighborsUrl);
         calculateRelativeSizes();
         await locallyLayoutNewNeighbors(node, added);
