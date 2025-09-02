@@ -8,7 +8,30 @@ default_graph:
   mapping:
     node_size: "degree"
   primary: >
-    MATCH (n:Business)
+      MATCH (n)
+      RETURN n
+      LIMIT toInteger($limit)
+  neighbors: 
+    _default: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Bank: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+
+prospect_view:
+  display_name: "Prospect View (by Degree)"
+  description: "Prospect size is based on the number of connections (degree)."
+  enabled: true
+  caption_property: "name"
+  mapping:
+    node_size: "degree"
+  primary: >
+    MATCH (n)
     WITH n, COUNT { (n)--() } AS degree
     SET n.degree = degree, n.community = labels(n)[0]
     WITH n
@@ -23,53 +46,13 @@ default_graph:
       WHERE elementId(n) = $node_id
       RETURN n, r, m
       LIMIT toInteger($limit)
-    Business: >
-      MATCH (n:Business)-[r:MAKES_PAYMENT]-(m:Business)
+    Prospect: >
+      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
       WHERE elementId(n) = $node_id
       RETURN n, r, m
       LIMIT toInteger($limit)
-    Bank: >
-      MATCH (n:FinancialInstitution)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-
-actors_and_movies:
-  display_name: "Actors & Movies (by Centrality)"
-  description: "Node size is based on PageRank centrality within this map."
-  enabled: true
-  caption_property: "name"
-  mapping:
-    node_size: "pagerank"
-    node_community: "community"
-    edge_weight: "weight"
-  primary: >
-    MATCH (n:Person)-[r:ACTED_IN]-(m:Movie)
-    WITH collect(n) as persons, collect(m) as movies, collect(r) as rels
-    WITH apoc.coll.toSet(persons + movies) as allNodes, rels as allRels
-    UNWIND allNodes as node
-    WITH node, 
-         CASE WHEN node:Person THEN 1.0 ELSE 0.2 END AS pagerank,
-         CASE WHEN node:Person THEN "Actors" ELSE "Movies" END AS community
-    SET node.pagerank = pagerank, node.community = community
-    WITH node
-    MATCH (node)-[r]-(m)
-    WHERE (node.name CONTAINS $text_search OR m.title CONTAINS $text_search OR $text_search IS NULL)
-    RETURN node as n, r, m
-    LIMIT toInteger($limit)
-  neighbors: 
-    _default: >
-      MATCH (n)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Person: >
-      MATCH (n:Person)-[r:ACTED_IN]-(m:Movie)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Movie: >
-      MATCH (n:Movie)-[r]-(m)
+    Client: >
+      MATCH (n:Client)-[r]-(m)
       WHERE elementId(n) = $node_id
       RETURN n, r, m
       LIMIT toInteger($limit)

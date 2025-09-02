@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const INFO_API_URL = '/api/connection-info';
     const QUERIES_API_URL = '/api/queries';
+function setActiveQueryKey(key){ const i=document.getElementById('current-query-key'); if(i){ i.value = key || ''; } }
+
     const SEARCH_API_URL_TEMPLATE = '/api/search/{query_name}';
     const NEIGHBORS_API_URL_TEMPLATE = '/api/nodes/{node_id}/neighbors';
     const NODE_PROPERTIES_API_URL_TEMPLATE = '/api/nodes/{node_id}/properties';
@@ -88,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
             name: layoutName,
             animate: true,
             padding: 50,
-            fit: true,
+            fit: false,
             idealEdgeLength: parseInt(edgeLengthSlider.value),
             edgeLength: parseInt(edgeLengthSlider.value),
             nodeSeparation: parseInt(nodeSpacingSlider.value),
@@ -167,8 +169,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function loadGraph(query) {
-        setActiveQueryKey(query.name);
         currentQuery = query;
+        try { setActiveQueryKey(query.name); } catch(e) {}
         cy.elements().remove();
         propertiesTitle.textContent = "Properties";
         propertiesPanel.innerHTML = `<p>Click a node or edge to see its properties.</p>`;
@@ -184,7 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
         await fetchDataAndRender(searchUrl);
         calculateRelativeSizes();
         
-        const layout = cy.layout({name: graphLayoutSelect.value, fit: true, padding: 50});
+        const layout = cy.layout({name: graphLayoutSelect.value, fit: false, padding: 50});
         layout.one('layoutstop', handleZoom);
         layout.run();
         
@@ -196,11 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 li.classList.remove('active');
             }
         });
-    }
-
-    function setActiveQueryKey(key){
-        const input = document.getElementById('current-query-key');
-        if (input) { input.value = key || ''; }
     }
 
     searchButton.addEventListener('click', () => { if (currentQuery.name) loadGraph(currentQuery); });
@@ -257,17 +254,56 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    
+    async function locallyLayoutNewNeighbors(centerNode, addedElements) {
+        try {
+            const newNodes = addedElements.filter('node');
+            if (newNodes.empty()) return;
+
+            // Position new nodes initially at the center node to smooth the animation
+            const p = centerNode.position();
+            newNodes.positions(() => ({ x: p.x, y: p.y }));
+
+            // Lock all other nodes so they don't move
+            const toKeepStill = cy.nodes().difference(newNodes).difference(centerNode);
+            toKeepStill.lock();
+
+            // Compute a bounded box around the center node so layout only happens locally
+            const radius = Math.max(150, parseInt(nodeSpacingSlider.value) * 2);
+            const bb = { x1: p.x - radius, y1: p.y - radius, x2: p.x + radius, y2: p.y + radius };
+
+            // Run a quick concentric layout on new nodes + the center node
+            const layout = cy.layout({
+                name: 'concentric',
+                eles: newNodes.union(centerNode),
+                animate: true,
+                animationDuration: 300,
+                fit: false,
+                boundingBox: bb,
+                avoidOverlap: true,
+                concentric: (ele) => ele.id() === centerNode.id() ? 2 : 1,
+                levelWidth: () => 1,
+                minNodeSpacing: parseInt(nodeSpacingSlider.value) || 20
+            });
+
+            await new Promise(resolve => { layout.one('layoutstop', resolve); layout.run(); });
+
+        } finally {
+            // Always unlock others, even if layout errors
+            cy.nodes().unlock();
+        }
+    }
+    
+
     cy.on('dbltap', 'node', async function(evt) {
         clearTimeout(tapTimeout);
         const node = evt.target;
         const nodeId = node.id();
         const nodeType = node.data('label');
-        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}&query_key=${
-            encodeURIComponent(document.getElementById('current-query-key')?.value || '')
-        }`;
-        await fetchDataAndRender(neighborsUrl);
+        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
+        const added = await fetchDataAndRender(neighborsUrl);
         calculateRelativeSizes();
-        reRunLayout();
+        await locallyLayoutNewNeighbors(node, added);
     });
 
     async function fetchElementProperties(element) {

@@ -94,7 +94,7 @@ def get_node_neighbors(
         params["node_type"] = node_type
         if query_key:
             params["query_key"] = query_key
-        query_set = (query_key or params.get("query_key") or "default_graph")
+        query_set = (query_key or dict(request.query_params).get("query_key") or "default_graph")
         return repo.execute_query(query_set, "neighbors", params)
     except Exception:
         logger.error(f"An error occurred while fetching neighbors for node {node_id}.", exc_info=True)
