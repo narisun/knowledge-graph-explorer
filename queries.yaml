@@ -8,7 +8,7 @@ default_graph:
   mapping:
     node_size: "degree"
   primary: >
-    MATCH (n)
+    MATCH (n:Business)
     WITH n, COUNT { (n)--() } AS degree
     SET n.degree = degree, n.community = labels(n)[0]
     WITH n
@@ -23,12 +23,12 @@ default_graph:
       WHERE elementId(n) = $node_id
       RETURN n, r, m
       LIMIT toInteger($limit)
-    Party: >
-      MATCH (n:Party)-[r:MADE_PAYMENT]-(m:Party)
+    Business: >
+      MATCH (n:Business)-[r:MAKES_PAYMENT]-(m:Business)
       WHERE elementId(n) = $node_id
       RETURN n, r, m
       LIMIT toInteger($limit)
-    FinancialInstitution: >
+    Bank: >
       MATCH (n:FinancialInstitution)-[r]-(m)
       WHERE elementId(n) = $node_id
       RETURN n, r, m

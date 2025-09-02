@@ -167,6 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function loadGraph(query) {
+        setActiveQueryKey(query.name);
         currentQuery = query;
         cy.elements().remove();
         propertiesTitle.textContent = "Properties";
@@ -195,6 +196,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 li.classList.remove('active');
             }
         });
+    }
+
+    function setActiveQueryKey(key){
+        const input = document.getElementById('current-query-key');
+        if (input) { input.value = key || ''; }
     }
 
     searchButton.addEventListener('click', () => { if (currentQuery.name) loadGraph(currentQuery); });
@@ -256,7 +262,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const node = evt.target;
         const nodeId = node.id();
         const nodeType = node.data('label');
-        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}`;
+        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}&query_key=${
+            encodeURIComponent(document.getElementById('current-query-key')?.value || '')
+        }`;
         await fetchDataAndRender(neighborsUrl);
         calculateRelativeSizes();
         reRunLayout();

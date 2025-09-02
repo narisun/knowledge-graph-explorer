@@ -81,6 +81,7 @@ def get_node_neighbors(
     node_id: str,
     node_type: str, # node_type is now a required parameter
     request: Request,
+    query_key: str | None = None,
     repo: repository.GraphRepository = Depends(get_repo)
 ):
     """
@@ -91,7 +92,10 @@ def get_node_neighbors(
         params = dict(request.query_params)
         params["node_id"] = node_id
         params["node_type"] = node_type
-        return repo.execute_query("default_graph", "neighbors", params)
+        if query_key:
+            params["query_key"] = query_key
+        query_set = (query_key or params.get("query_key") or "default_graph")
+        return repo.execute_query(query_set, "neighbors", params)
     except Exception:
         logger.error(f"An error occurred while fetching neighbors for node {node_id}.", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
