@@ -252,86 +252,101 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     
+
 async function locallyLayoutNewNeighbors(centerNode, addedElements) {
-    const newNodes = addedElements.filter('node');
-    if (newNodes.empty()) return;
+  const newNodes = addedElements.filter('node');
+  if (newNodes.empty()) return;
 
-    const others = cy.nodes().difference(newNodes);
-    others.lock();
-    try {
-        const cpos = centerNode.position();
-        newNodes.positions(() => ({ x: cpos.x, y: cpos.y }));
+  const others = cy.nodes().difference(newNodes);
+  others.lock();
+  try {
+    const cpos = centerNode.position();
+    newNodes.positions(() => ({ x: cpos.x, y: cpos.y }));
 
-        const spacing = parseInt(nodeSpacingSlider.value) || 30;
-        const minSep = Math.max(24, spacing);
-        const stepOut = Math.max(40, spacing);
-        const maxPush = 10;
+    const spacing = parseInt(nodeSpacingSlider.value) || 30;
+    const minSep  = Math.max(24, spacing);
+    const maxPush = 10;
+    const angleStep = Math.PI / 18; // 10° adjustments
 
-        const bb = cy.nodes().boundingBox();
-        const graphCenter = { x: (bb.x1 + bb.x2) / 2, y: (bb.y1 + bb.y2) / 2 };
-        let dir = { x: cpos.x - graphCenter.x, y: cpos.y - graphCenter.y };
-        const dirLen = Math.hypot(dir.x, dir.y) || 1;
-        dir = { x: dir.x / dirLen, y: dir.y / dirLen };
+    // Viewport-aware ring radius
+    const ext = cy.extent();
+    const margin = 30;
+    const rView = 0.9 * Math.min(
+      Math.max(10, cpos.x - ext.x1 - margin),
+      Math.max(10, ext.x2 - cpos.x - margin),
+      Math.max(10, cpos.y - ext.y1 - margin),
+      Math.max(10, ext.y2 - cpos.y - margin)
+    );
+    const baseR = Math.max(Math.min(rView, spacing * 3 + 60), minSep + 40); // clamp to keep in view
 
-        let maxLocal = 0;
-        others.forEach(o => {
-            const p = o.position();
-            const d = Math.hypot(p.x - cpos.x, p.y - cpos.y);
-            if (d > maxLocal) maxLocal = d;
-        });
-        let baseR = maxLocal + spacing * 2 + 40;
+    // Direction away from density (graph center -> node)
+    const bb = cy.nodes().boundingBox();
+    const graphCenter = { x: (bb.x1 + bb.x2)/2, y: (bb.y1 + bb.y2)/2 };
+    let dir = { x: cpos.x - graphCenter.x, y: cpos.y - graphCenter.y };
+    const len = Math.hypot(dir.x, dir.y) || 1;
+    dir = { x: dir.x/len, y: dir.y/len };
+    const centerAngle = Math.atan2(dir.y, dir.x);
 
-        const newNs = [];
-        newNodes.forEach(n => newNs.push(n));
-
-        const existingPositions = [];
-        others.forEach(o => existingPositions.push(o.position()));
-
-        function nearestDist(pos) {
-            let min = Infinity;
-            for (let i = 0; i < existingPositions.length; i++) {
-                const p = existingPositions[i];
-                const d = Math.hypot(p.x - pos.x, p.y - pos.y);
-                if (d < min) min = d;
-            }
-            return min;
-        }
-
-        const centerAngle = Math.atan2(dir.y, dir.x);
-        const count = newNs.length;
-        const spread = Math.min(Math.PI * 0.9, Math.max(0.6, (count - 1) * 0.25));
-
-        for (let i = 0; i < count; i++) {
-            const t = (count === 1) ? 0.5 : (i / (count - 1));
-            const angle = centerAngle - spread / 2 + spread * t;
-
-            let r = baseR + (i % 3) * (spacing * 0.6);
-
-            let attempts = 0;
-            let finalPos = null;
-            while (attempts < maxPush) {
-                const pos = {
-                    x: cpos.x + Math.cos(angle) * r,
-                    y: cpos.y + Math.sin(angle) * r
-                };
-                if (nearestDist(pos) >= minSep) {
-                    finalPos = pos;
-                    break;
-                }
-                r += stepOut;
-                attempts++;
-            }
-            if (!finalPos) {
-                finalPos = { x: cpos.x + Math.cos(angle) * r, y: cpos.y + Math.sin(angle) * r };
-            }
-
-            await newNs[i].animate({ position: finalPos }, { duration: 280, queue: false }).promise();
-        }
-
-    } finally {
-        cy.nodes().unlock();
+    // Build a snapshot of existing positions for min-distance checks
+    const existingPositions = [];
+    others.forEach(o => existingPositions.push(o.position()));
+    function nearestDist(pos){
+      let min = Infinity;
+      for (const p of existingPositions) {
+        const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+        if (d < min) min = d;
+      }
+      return min;
     }
+
+    // Distribute on a local arc; adjust angles first (not radius) to avoid overlap,
+    // then allow a small radius growth but never past rView.
+    const newNs = []; newNodes.forEach(n => newNs.push(n));
+    const count = newNs.length;
+    const spread = Math.min(Math.PI * 0.85, Math.max(0.6, (count - 1) * 0.22));
+    const rMax = Math.max(minSep + 40, rView);
+
+    for (let i = 0; i < count; i++) {
+      const t = (count === 1) ? 0.5 : (i / (count - 1));
+      let angle = centerAngle - spread/2 + spread * t;
+      let r = baseR;
+      let finalPos = null;
+
+      // Try small angular adjustments first to stay near the node and inside viewport
+      let k = 0;
+      while (k < 12 && !finalPos) {
+        const tryAngle = angle + ((k % 2 === 0 ? 1 : -1) * Math.ceil(k/2)) * angleStep;
+        const pos = { x: cpos.x + Math.cos(tryAngle) * r, y: cpos.y + Math.sin(tryAngle) * r };
+        const inView = (pos.x > ext.x1 + margin && pos.x < ext.x2 - margin &&
+                        pos.y > ext.y1 + margin && pos.y < ext.y2 - margin);
+        if (inView && nearestDist(pos) >= minSep) finalPos = pos;
+        k++;
+      }
+
+      // If still no spot, gently increase radius but keep under rMax (viewport bound)
+      let tries = 0;
+      while (!finalPos && tries < maxPush && r < rMax) {
+        r += Math.max(20, spacing * 0.6);
+        const pos = { x: cpos.x + Math.cos(angle) * r, y: cpos.y + Math.sin(angle) * r };
+        const inView = (pos.x > ext.x1 + margin && pos.x < ext.x2 - margin &&
+                        pos.y > ext.y1 + margin && pos.y < ext.y2 - margin);
+        if (inView && nearestDist(pos) >= minSep) finalPos = pos;
+        tries++;
+      }
+
+      // Fallback: clamp to viewport edge toward the chosen direction (still keeps things visible)
+      if (!finalPos) {
+        const clampR = Math.max(10, rView - margin);
+        finalPos = { x: cpos.x + Math.cos(angle) * clampR, y: cpos.y + Math.sin(angle) * clampR };
+      }
+
+      await newNs[i].animate({ position: finalPos }, { duration: 220, queue: false }).promise();
+    }
+  } finally {
+    cy.nodes().unlock();
+  }
 }
+
 
 cy.on('dbltap', 'node', async function(evt) {
         clearTimeout(tapTimeout);
