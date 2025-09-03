@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const INFO_API_URL = '/api/connection-info';
     const QUERIES_API_URL = '/api/queries';
+function setActiveQueryKey(key){ const i=document.getElementById('current-query-key'); if(i){ i.value = key || ''; } }
+
     const SEARCH_API_URL_TEMPLATE = '/api/search/{query_name}';
     const NEIGHBORS_API_URL_TEMPLATE = '/api/nodes/{node_id}/neighbors';
     const NODE_PROPERTIES_API_URL_TEMPLATE = '/api/nodes/{node_id}/properties';
@@ -168,6 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadGraph(query) {
         currentQuery = query;
+        try { setActiveQueryKey(query.name); } catch(e) {}
         cy.elements().remove();
         propertiesTitle.textContent = "Properties";
         propertiesPanel.innerHTML = `<p>Click a node or edge to see its properties.</p>`;
@@ -252,108 +255,69 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     
-
+// Fresh, simpler approach: place neighbors in a small circle around the clicked node.
+// Use Cytoscape's built-in circle layout with a tight bounding box around the center node,
+// then minimally fit the viewport only if needed to include the new nodes.
 async function locallyLayoutNewNeighbors(centerNode, addedElements) {
   const newNodes = addedElements.filter('node');
   if (newNodes.empty()) return;
 
+  // Lock all existing nodes to keep the graph perfectly stable during expansion
   const others = cy.nodes().difference(newNodes);
   others.lock();
   try {
+    // Start new nodes at center for smooth animation
     const cpos = centerNode.position();
     newNodes.positions(() => ({ x: cpos.x, y: cpos.y }));
 
+    // Compute a small radius based on count and current slider spacing to keep edges short
     const spacing = parseInt(nodeSpacingSlider.value) || 30;
-    const minSep  = Math.max(24, spacing);
-    const maxPush = 10;
-    const angleStep = Math.PI / 18; // 10° adjustments
+    const count = newNodes.length;
+    // Minimum radius that avoids label overlaps for small sets; scale modestly by count
+    const radius = Math.max(50, Math.min(200, 18 * count + spacing));
 
-    // Viewport-aware ring radius
+    const bb = { x1: cpos.x - radius, y1: cpos.y - radius, x2: cpos.x + radius, y2: cpos.y + radius };
+
+    // Run a local circle layout on just the new nodes
+    const layout = cy.layout({
+      name: 'circle',
+      eles: newNodes,
+      fit: false,                    // do not change viewport
+      boundingBox: bb,               // keep it local to the center node
+      animate: true,
+      animationDuration: 250,
+      avoidOverlap: true,
+      nodeDimensionsIncludeLabels: true
+    });
+
+    await new Promise(resolve => { layout.one('layoutstop', resolve); layout.run(); });
+
+    // If any new node ended up outside current viewport, minimally fit to center+newNodes only
     const ext = cy.extent();
-    const margin = 30;
-    const rView = 0.9 * Math.min(
-      Math.max(10, cpos.x - ext.x1 - margin),
-      Math.max(10, ext.x2 - cpos.x - margin),
-      Math.max(10, cpos.y - ext.y1 - margin),
-      Math.max(10, ext.y2 - cpos.y - margin)
-    );
-    const baseR = Math.max(Math.min(rView, spacing * 3 + 60), minSep + 40); // clamp to keep in view
-
-    // Direction away from density (graph center -> node)
-    const bb = cy.nodes().boundingBox();
-    const graphCenter = { x: (bb.x1 + bb.x2)/2, y: (bb.y1 + bb.y2)/2 };
-    let dir = { x: cpos.x - graphCenter.x, y: cpos.y - graphCenter.y };
-    const len = Math.hypot(dir.x, dir.y) || 1;
-    dir = { x: dir.x/len, y: dir.y/len };
-    const centerAngle = Math.atan2(dir.y, dir.x);
-
-    // Build a snapshot of existing positions for min-distance checks
-    const existingPositions = [];
-    others.forEach(o => existingPositions.push(o.position()));
-    function nearestDist(pos){
-      let min = Infinity;
-      for (const p of existingPositions) {
-        const d = Math.hypot(p.x - pos.x, p.y - pos.y);
-        if (d < min) min = d;
+    const margin = 20;
+    let outOfView = false;
+    newNodes.forEach(n => {
+      const p = n.position();
+      if (p.x < ext.x1 + margin || p.x > ext.x2 - margin || p.y < ext.y1 + margin || p.y > ext.y2 - margin) {
+        outOfView = true;
       }
-      return min;
-    }
-
-    // Distribute on a local arc; adjust angles first (not radius) to avoid overlap,
-    // then allow a small radius growth but never past rView.
-    const newNs = []; newNodes.forEach(n => newNs.push(n));
-    const count = newNs.length;
-    const spread = Math.min(Math.PI * 0.85, Math.max(0.6, (count - 1) * 0.22));
-    const rMax = Math.max(minSep + 40, rView);
-
-    for (let i = 0; i < count; i++) {
-      const t = (count === 1) ? 0.5 : (i / (count - 1));
-      let angle = centerAngle - spread/2 + spread * t;
-      let r = baseR;
-      let finalPos = null;
-
-      // Try small angular adjustments first to stay near the node and inside viewport
-      let k = 0;
-      while (k < 12 && !finalPos) {
-        const tryAngle = angle + ((k % 2 === 0 ? 1 : -1) * Math.ceil(k/2)) * angleStep;
-        const pos = { x: cpos.x + Math.cos(tryAngle) * r, y: cpos.y + Math.sin(tryAngle) * r };
-        const inView = (pos.x > ext.x1 + margin && pos.x < ext.x2 - margin &&
-                        pos.y > ext.y1 + margin && pos.y < ext.y2 - margin);
-        if (inView && nearestDist(pos) >= minSep) finalPos = pos;
-        k++;
-      }
-
-      // If still no spot, gently increase radius but keep under rMax (viewport bound)
-      let tries = 0;
-      while (!finalPos && tries < maxPush && r < rMax) {
-        r += Math.max(20, spacing * 0.6);
-        const pos = { x: cpos.x + Math.cos(angle) * r, y: cpos.y + Math.sin(angle) * r };
-        const inView = (pos.x > ext.x1 + margin && pos.x < ext.x2 - margin &&
-                        pos.y > ext.y1 + margin && pos.y < ext.y2 - margin);
-        if (inView && nearestDist(pos) >= minSep) finalPos = pos;
-        tries++;
-      }
-
-      // Fallback: clamp to viewport edge toward the chosen direction (still keeps things visible)
-      if (!finalPos) {
-        const clampR = Math.max(10, rView - margin);
-        finalPos = { x: cpos.x + Math.cos(angle) * clampR, y: cpos.y + Math.sin(angle) * clampR };
-      }
-
-      await newNs[i].animate({ position: finalPos }, { duration: 220, queue: false }).promise();
+    });
+    if (outOfView) {
+      // Fit to the smallest collection needed (clicked node + its neighbors), small padding
+      const target = centerNode.union(newNodes);
+      cy.fit(target, 30);
     }
   } finally {
     cy.nodes().unlock();
   }
 }
 
-
 cy.on('dbltap', 'node', async function(evt) {
         clearTimeout(tapTimeout);
         const node = evt.target;
         const nodeId = node.id();
         const nodeType = node.data('label');
-        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}`;
+        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
         const added = await fetchDataAndRender(neighborsUrl);
         calculateRelativeSizes();
         await locallyLayoutNewNeighbors(node, added);
