@@ -81,6 +81,8 @@ class GraphRepository:
             raise PermissionError(f"Query set '{query_set_name}' is disabled or does not exist.")
         
         mapping = query_set.get("mapping", {})
+        # --- MODIFIED: Get the caption property from the query configuration ---
+        caption_property = query_set.get("caption_property", "name")
 
         if query_type == "neighbors":
             node_type = params.get("node_type")
@@ -104,9 +106,11 @@ class GraphRepository:
             records = list(result)
             
         logger.info(f"Query returned {len(records)} records.")
-        return self._nodes_to_cytoscape_format(records, mapping)
+        # --- MODIFIED: Pass the caption property to the formatting method ---
+        return self._nodes_to_cytoscape_format(records, mapping, caption_property)
 
-    def _nodes_to_cytoscape_format(self, records: list[Record], mapping: dict) -> list[dict]:
+    # --- MODIFIED: The function now accepts the caption_property ---
+    def _nodes_to_cytoscape_format(self, records: list[Record], mapping: dict, caption_property: str) -> list[dict]:
         nodes, edges, parent_nodes = {}, {}, set()
         
         node_size_prop = mapping.get("node_size")
@@ -119,7 +123,18 @@ class GraphRepository:
                 if hasattr(value, 'labels'): # It's a Node
                     node_id = value.element_id
                     if node_id not in nodes:
-                        node_data = { "id": node_id, "label": list(value.labels)[0] if value.labels else "Node", "name": value.get("name", "Unnamed") }
+                        node_label = list(value.labels)[0] if value.labels else "Node"
+                        
+                        # --- MODIFIED: Use caption_property to get the caption, with node_label as the fallback ---
+                        caption = value.get(caption_property, node_label)
+
+                        node_data = {
+                            "id": node_id,
+                            "label": node_label,
+                            # Set the 'name' property, which the frontend can use as a consistent fallback.
+                            "name": caption
+                        }
+
                         if node_size_prop and value.get(node_size_prop) is not None:
                             node_data["size"] = value.get(node_size_prop)
                         if node_community_prop and value.get(node_community_prop) is not None:
