@@ -8,9 +8,15 @@ default_graph:
   mapping:
     node_size: "degree"
   primary: >
-      MATCH (n)
-      RETURN n
-      LIMIT toInteger($limit)
+    MATCH (n)
+    WITH n, COUNT { (n)--() } AS degree
+    SET n.degree = degree, n.community = labels(n)[0]
+    WITH n
+    MATCH (n)-[r]-(m)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
+    RETURN n, r, m
+    ORDER BY n.degree DESC
+    LIMIT toInteger($limit)
   neighbors: 
     _default: >
       MATCH (n)-[r]-(m)
