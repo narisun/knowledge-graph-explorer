@@ -317,7 +317,7 @@ cy.on('dbltap', 'node', async function(evt) {
         const node = evt.target;
         const nodeId = node.id();
         const nodeType = node.data('label');
-        const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
+        let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
         if (lastClickedNode) {
            neighborsUrl += `&parent_node_id=${lastClickedNode.id}&parent_node_type=${lastClickedNode.type}`;
         }
