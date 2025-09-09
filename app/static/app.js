@@ -14,6 +14,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const EDGE_PROPERTIES_API_URL_TEMPLATE = '/api/edges/{edge_id}/properties';
 
     let currentQuery = {};
+    let lastClickedNode = null;
 
     const cyContainer = document.getElementById('cy');
     const loader = document.getElementById('loader');
@@ -48,7 +49,6 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                 style: { 
                     'background-color': (ele) => getColorForLabel(ele.data('label')), 
                     'label': (ele) => ele.data(currentQuery.caption_property) || ele.data('name'),
-                    // --- UPDATED: Node sizes reduced by ~50% ---
                     'width': (ele) => ele.data('relative_size') ? 8 + ele.data('relative_size') * 20 : 13,
                     'height': (ele) => ele.data('relative_size') ? 8 + ele.data('relative_size') * 20 : 13,
                     'text-opacity': 0, 'color': '#333', 'font-size': '10px', 'border-width': 0 
@@ -318,9 +318,15 @@ cy.on('dbltap', 'node', async function(evt) {
         const nodeId = node.id();
         const nodeType = node.data('label');
         const neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
+        if (lastClickedNode) {
+           neighborsUrl += `&parent_node_id=${lastClickedNode.id}&parent_node_type=${lastClickedNode.type}`;
+        }
         const added = await fetchDataAndRender(neighborsUrl);
         calculateRelativeSizes();
         await locallyLayoutNewNeighbors(node, added);
+
+        // Update the last clicked node to the current one for the next interaction
+        lastClickedNode = { id: nodeId, type: nodeType };        
     });
 
     async function fetchElementProperties(element) {
