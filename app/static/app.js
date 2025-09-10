@@ -14,7 +14,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const EDGE_PROPERTIES_API_URL_TEMPLATE = '/api/edges/{edge_id}/properties';
 
     let currentQuery = {};
-    let lastClickedNode = null;
+    let clickedNodesHistory = {};
 
     const cyContainer = document.getElementById('cy');
     const loader = document.getElementById('loader');
@@ -387,21 +387,29 @@ async function locallyLayoutNewNeighbors(centerNode, addedElements) {
 }
 
 cy.on('dbltap', 'node', async function(evt) {
-        clearTimeout(tapTimeout);
-        const node = evt.target;
-        const nodeId = node.id();
-        const nodeType = node.data('label');
-        let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
-        if (lastClickedNode) {
-           neighborsUrl += `&parent_node_id=${lastClickedNode.id}&parent_node_type=${lastClickedNode.type}`;
-        }
-        const added = await fetchDataAndRender(neighborsUrl);
-        calculateRelativeSizes();
-        await locallyLayoutNewNeighbors(node, added);
+    clearTimeout(tapTimeout);
+    const node = evt.target;
+    const nodeId = node.id();
+    const nodeType = node.data('label');
 
-        // Update the last clicked node to the current one for the next interaction
-        lastClickedNode = { id: nodeId, type: nodeType };        
-    });
+    clickedNodesHistory[nodeType] = nodeId; 
+
+    const historyParams = Object.entries(clickedNodesHistory)
+        .map(([type, id]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(id)}`)
+        .join('&');
+
+    let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 
+        + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
+    
+    if (historyParams) {
+        neighborsUrl += `&${historyParams}`;
+    }
+    
+    const added = await fetchDataAndRender(neighborsUrl);
+    calculateRelativeSizes();
+    await locallyLayoutNewNeighbors(node, added);
+});
+
 
     async function fetchElementProperties(element) {
         const id = element.id();

@@ -82,8 +82,6 @@ def get_node_neighbors(
     node_type: str, # node_type is now a required parameter
     request: Request,
     query_key: str | None = None,
-    parent_node_id: str | None = None,
-    parent_node_type: str | None = None,    
     repo: repository.GraphRepository = Depends(get_repo)
 ):
     """
