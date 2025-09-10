@@ -20,7 +20,6 @@
     <script src="https://unpkg.com/cytoscape-popper@2.0.0/cytoscape-popper.js"></script>
 </head>
 <body>
-    <!-- Hidden field to persist currently selected query key for neighbor lookups -->
     <input type="hidden" id="current-query-key" value="">
 
 
@@ -84,11 +83,11 @@
                     </div>
                     <div class="control-item">
                         <label for="edge-length-slider">Ideal Edge Length</label>
-                        <input type="range" id="edge-length-slider" class="slider" min="30" max="300" step="10" value="120">
+                        <input type="range" id="edge-length-slider" class="slider" min="1" max="300" step="10" value="70">
                     </div>
                     <div class="control-item">
                         <label for="node-spacing-slider">Node Separation</label>
-                        <input type="range" id="node-spacing-slider" class="slider" min="5" max="150" step="5" value="75">
+                        <input type="range" id="node-spacing-slider" class="slider" min="1" max="150" step="5" value="20">
                     </div>
                 </div>
             </div>

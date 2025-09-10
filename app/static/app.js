@@ -41,6 +41,99 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         return labelColorMap[label];
     }
 
+    const layouts = {
+        cola: {
+            name: 'cola',
+            animate: true,
+            refresh: 1,
+            maxSimulationTime: 20000,
+            ungrabifyWhileSimulating: false,
+            fit: false,
+            padding: 50,
+            nodeDimensionsIncludeLabels: false,
+            ready: function(){},
+            stop: function(){},
+            randomize: false,
+            avoidOverlap: true,
+            handleDisconnected: true,
+            convergenceThreshold: 0.01,
+            nodeSpacing: (node) => 20,
+            centerGraph: true,
+            edgeLength: 150
+        },
+        fcose: {
+            name: 'fcose',
+            quality: "default",
+            randomize: true,
+            animate: false,
+            animationDuration: 1000,
+            fit: false,
+            padding: 30,
+            nodeDimensionsIncludeLabels: false,
+            uniformNodeDimensions: false,
+            packComponents: true,
+            step: "all",
+            nodeSeparation: 75,
+            nodeRepulsion: node => 20000,
+            idealEdgeLength: edge => 200,
+            edgeElasticity: edge => 0.55,
+            nestingFactor: 0.1,
+            numIter: 2500,
+            tile: true,
+            tilingPaddingVertical: 10,
+            tilingPaddingHorizontal: 10,
+            gravity: 0.25,
+            gravityRangeCompound: 1.5,
+            gravityCompound: 1.0,
+            gravityRange: 3.8,
+            initialEnergyOnIncremental: 0.3,
+            ready: () => {},
+            stop: () => {}
+        },
+        concentric: {
+            name: 'concentric',
+            fit: false,
+            padding: 30,
+            startAngle: 3 / 2 * Math.PI,
+            clockwise: true,
+            equidistant: false,
+            minNodeSpacing: 10,
+            avoidOverlap: true,
+            nodeDimensionsIncludeLabels: false,
+            spacingFactor: undefined,
+            concentric: function( node ){
+                return node.degree();
+            },
+            levelWidth: function( nodes ){
+                return nodes.maxDegree() / 4;
+            },
+            animate: false
+        },
+        circle: {
+            name: 'circle',
+            fit: true,
+            padding: 30,
+            radius: undefined,
+            startAngle: 3/2 * Math.PI,
+            clockwise: true,
+            avoidOverlap: true,
+            nodeDimensionsIncludeLabels: false,
+        },
+        breadthfirst: {
+            name: 'breadthfirst',
+            fit: false,
+            directed: true,
+            padding: 30,
+            circle: false,
+            grid: false,
+            spacingFactor: 1.5,
+            avoidOverlap: true,
+            nodeDimensionsIncludeLabels: false,
+            maximal: false,
+            animate: false
+        }
+    };
+    
     const cy = cytoscape({
         container: cyContainer,
         style: [
@@ -82,23 +175,19 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const hideLoader = () => loader.style.display = 'none';
 
     zoomSlider.addEventListener('input', (e) => cy.zoom(parseFloat(e.target.value)));
-    cy.on('zoom', () => zoomSlider.value = cy.zoom());
     
     function reRunLayout() {
         const layoutName = graphLayoutSelect.value;
-        const options = {
-            name: layoutName,
-            animate: true,
-            padding: 50,
-            fit: true,
-            idealEdgeLength: parseInt(edgeLengthSlider.value),
-            edgeLength: parseInt(edgeLengthSlider.value),
-            nodeSeparation: parseInt(nodeSpacingSlider.value),
-            nodeSpacing: parseInt(nodeSpacingSlider.value),
-            spacingFactor: 1.5,
-            nodeOverlap: 20,
-            nodeRepulsion: 400000
-        };
+        const edgeLength = parseInt(edgeLengthSlider.value);
+        const nodeSpacing = parseInt(nodeSpacingSlider.value);
+
+        const options = Object.assign({}, layouts[layoutName], {
+            idealEdgeLength: edgeLength,
+            edgeLength: edgeLength,
+            nodeSeparation: nodeSpacing,
+            nodeSpacing: nodeSpacing,
+            minNodeSpacing: nodeSpacing
+        });
         cy.layout(options).run();
     }
     graphLayoutSelect.addEventListener('change', reRunLayout);
@@ -186,9 +275,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         await fetchDataAndRender(searchUrl);
         calculateRelativeSizes();
         
-        const layout = cy.layout({name: graphLayoutSelect.value, fit: true, padding: 50});
-        layout.one('layoutstop', handleZoom);
-        layout.run();
+        reRunLayout();
         
         document.querySelectorAll('#query-list li').forEach(li => {
             if (li.dataset.queryName === query.name) {
@@ -255,61 +342,48 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     });
 
     
-// Fresh, simpler approach: place neighbors in a small circle around the clicked node.
-// Use Cytoscape's built-in circle layout with a tight bounding box around the center node,
-// then minimally fit the viewport only if needed to include the new nodes.
 async function locallyLayoutNewNeighbors(centerNode, addedElements) {
-  const newNodes = addedElements.filter('node');
-  if (newNodes.empty()) return;
+    const newNodes = addedElements.filter('node');
+    if (newNodes.empty()) return;
 
-  // Lock all existing nodes to keep the graph perfectly stable during expansion
-  const others = cy.nodes().difference(newNodes);
-  others.lock();
-  try {
-    // Start new nodes at center for smooth animation
-    const cpos = centerNode.position();
-    newNodes.positions(() => ({ x: cpos.x, y: cpos.y }));
+    // Lock all existing nodes to keep the graph stable during expansion
+    const existingNodes = cy.nodes().difference(newNodes);
+    existingNodes.lock();
 
-    // Compute a small radius based on count and current slider spacing to keep edges short
-    const spacing = parseInt(nodeSpacingSlider.value) || 30;
-    const count = newNodes.length;
-    // Minimum radius that avoids label overlaps for small sets; scale modestly by count
-    const radius = Math.max(50, Math.min(200, 18 * count + spacing));
+    try {
+        // Start new nodes at the center for a smooth animation from the parent
+        const centerPosition = centerNode.position();
+        newNodes.positions(() => ({ x: centerPosition.x, y: centerPosition.y }));
 
-    const bb = { x1: cpos.x - radius, y1: cpos.y - radius, x2: cpos.x + radius, y2: cpos.y + radius };
+        // Use the edge length slider to control the distance of the new nodes
+        const radius = parseInt(edgeLengthSlider.value, 10);
+        
+        // Define a bounding box around the clicked node to contain the new circular layout
+        const boundingBox = {
+            x1: centerPosition.x - radius,
+            y1: centerPosition.y - radius,
+            x2: centerPosition.x + radius,
+            y2: centerPosition.y + radius
+        };
 
-    // Run a local circle layout on just the new nodes
-    const layout = cy.layout({
-      name: 'circle',
-      eles: newNodes,
-      fit: false,                    // do not change viewport
-      boundingBox: bb,               // keep it local to the center node
-      animate: true,
-      animationDuration: 250,
-      avoidOverlap: true,
-      nodeDimensionsIncludeLabels: true
-    });
+        // Run a simple, robust circle layout for the new nodes
+        const layout = cy.layout({
+            name: 'circle',
+            eles: newNodes,
+            fit: false, // This is critical to prevent the viewport from zooming/panning
+            boundingBox: boundingBox,
+            avoidOverlap: true,
+            radius: radius,
+            animate: true,
+            animationDuration: 500,
+        });
 
-    await new Promise(resolve => { layout.one('layoutstop', resolve); layout.run(); });
+        await new Promise(resolve => { layout.one('layoutstop', resolve); layout.run(); });
 
-    // If any new node ended up outside current viewport, minimally fit to center+newNodes only
-    const ext = cy.extent();
-    const margin = 20;
-    let outOfView = false;
-    newNodes.forEach(n => {
-      const p = n.position();
-      if (p.x < ext.x1 + margin || p.x > ext.x2 - margin || p.y < ext.y1 + margin || p.y > ext.y2 - margin) {
-        outOfView = true;
-      }
-    });
-    if (outOfView) {
-      // Fit to the smallest collection needed (clicked node + its neighbors), small padding
-      const target = centerNode.union(newNodes);
-      cy.fit(target, 30);
+    } finally {
+        // Unlock all nodes after the layout is complete
+        cy.nodes().unlock();
     }
-  } finally {
-    cy.nodes().unlock();
-  }
 }
 
 cy.on('dbltap', 'node', async function(evt) {
@@ -389,6 +463,53 @@ cy.on('dbltap', 'node', async function(evt) {
         if(tooltip) {
             tooltip.destroy();
             evt.target.removeData('tooltip');
+        }
+    });
+
+    // --- Drag-to-Pull-Children Logic with Debugging ---
+    let draggedParent = null;
+    let dragOffsets = {};
+
+    cy.on('grab', 'node', function(evt) {
+        draggedParent = evt.target;
+        const parentPos = draggedParent.position();
+        console.log(`GRABBED node ${draggedParent.id()} at`, parentPos);
+        
+        draggedParent.neighborhood('node').forEach(function(neighbor) {
+            const neighborPos = neighbor.position();
+            dragOffsets[neighbor.id()] = {
+                x: neighborPos.x - parentPos.x,
+                y: neighborPos.y - parentPos.y
+            };
+        });
+        console.log('Calculated offsets for neighbors:', dragOffsets);
+    });
+
+    cy.on('drag', 'node', function(evt) {
+        if (draggedParent && draggedParent === evt.target) {
+            const parentPos = draggedParent.position();
+            console.log(`DRAGGING node ${draggedParent.id()} to`, parentPos);
+            
+            draggedParent.neighborhood('node').forEach(function(neighbor) {
+                const offset = dragOffsets[neighbor.id()];
+                if (offset) {
+                    const newPos = {
+                        x: parentPos.x + offset.x,
+                        y: parentPos.y + offset.y
+                    };
+                    neighbor.position(newPos);
+                    console.log(`...moving neighbor ${neighbor.id()} to`, newPos);
+                }
+            });
+        }
+    });
+
+    cy.on('free', 'node', function(evt) {
+        if (draggedParent && draggedParent === evt.target) {
+            console.log(`FREED node ${draggedParent.id()}`);
+            draggedParent = null;
+            dragOffsets = {};
+            console.log('Cleared drag state.');
         }
     });
 
