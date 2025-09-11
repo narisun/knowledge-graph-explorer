@@ -120,6 +120,61 @@ html, body {
 #cy {
     flex-grow: 1;
     position: relative;
+    height: 65%; /* Adjust height to make space for the table */
+}
+
+.data-table-container {
+    height: 35%; /* The remaining height */
+    overflow: auto;
+    border-top: 2px solid #ccc;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.data-table-summary {
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    font-size: 0.9em;
+    color: #333;
+    display: flex;
+    gap: 1.5em;
+}
+.summary-item strong {
+    color: #000;
+}
+
+#data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85em;
+}
+
+#data-table th, #data-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    vertical-align: top;
+}
+
+#data-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+
+#data-table tbody tr:hover {
+    background-color: #f9f9f9;
+}
+.table-props-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.table-props-list li {
+    margin-bottom: 2px;
 }
 
 .loader-wrapper {

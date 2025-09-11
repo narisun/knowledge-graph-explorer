@@ -2,6 +2,8 @@
 import logging
 import yaml
 from neo4j import Driver, Record
+from neo4j.spatial import Point
+from neo4j.time import Date, Time, DateTime, Duration
 from .config import settings
 
 logger = logging.getLogger(__name__)
@@ -72,16 +74,16 @@ class GraphRepository:
             logger.error(f"An exception occurred fetching properties for edge {edge_id}", exc_info=True)
             return None
 
-    def execute_query(self, query_set_name: str, query_type: str, params: dict) -> list[dict]:
+    def execute_query(self, query_set_name: str, query_type: str, params: dict) -> dict:
         """
-        Selects and executes a pre-defined Cypher query with the given parameters.
+        Selects and executes a pre-defined Cypher query and returns both
+        graph-formatted and raw record data.
         """
         query_set = self.query_sets.get(query_set_name, {})
         if not query_set.get("enabled", False):
             raise PermissionError(f"Query set '{query_set_name}' is disabled or does not exist.")
         
         mapping = query_set.get("mapping", {})
-        # --- MODIFIED: Get the caption property from the query configuration ---
         caption_property = query_set.get("caption_property", "name")
 
         if query_type == "neighbors":
@@ -104,12 +106,47 @@ class GraphRepository:
         with self.driver.session() as session:
             result = session.run(query, params)
             records = list(result)
+            keys = result.keys()
             
         logger.info(f"Query returned {len(records)} records.")
-        # --- MODIFIED: Pass the caption property to the formatting method ---
-        return self._nodes_to_cytoscape_format(records, mapping, caption_property)
+        
+        return {
+            "graph": self._nodes_to_cytoscape_format(records, mapping, caption_property),
+            "records": self._records_to_json_serializable(records),
+            "keys": keys
+        }
 
-    # --- MODIFIED: The function now accepts the caption_property ---
+    def _records_to_json_serializable(self, records: list[Record]) -> list[dict]:
+        """
+        Converts a list of Neo4j Records into a JSON-serializable format,
+        handling complex types like Nodes and Relationships.
+        """
+        def serialize_value(value):
+            if isinstance(value, (Date, Time, DateTime, Duration)):
+                return str(value)
+            if isinstance(value, Point):
+                return {"srid": value.srid, "x": value.x, "y": value.y, "z": value.z}
+            if hasattr(value, 'labels'):  # It's a Node
+                return {
+                    "_type": "node",
+                    "_labels": list(value.labels),
+                    "properties": dict(value.items())
+                }
+            if hasattr(value, 'start_node'):  # It's a Relationship
+                return {
+                    "_type": "relationship",
+                    "_relation_type": type(value).__name__,
+                    "properties": dict(value.items())
+                }
+            if isinstance(value, dict):
+                return {k: serialize_value(v) for k, v in value.items()}
+            return value
+
+        return [
+            {key: serialize_value(record[key]) for key in record.keys()}
+            for record in records
+        ]
+
     def _nodes_to_cytoscape_format(self, records: list[Record], mapping: dict, caption_property: str) -> list[dict]:
         nodes, edges, parent_nodes = {}, {}, set()
         
@@ -124,14 +161,10 @@ class GraphRepository:
                     node_id = value.element_id
                     if node_id not in nodes:
                         node_label = list(value.labels)[0] if value.labels else "Node"
-                        
-                        # --- MODIFIED: Use caption_property to get the caption, with node_label as the fallback ---
                         caption = value.get(caption_property, node_label)
-
                         node_data = {
                             "id": node_id,
                             "label": node_label,
-                            # Set the 'name' property, which the frontend can use as a consistent fallback.
                             "name": caption
                         }
 

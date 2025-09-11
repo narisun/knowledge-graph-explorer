@@ -30,6 +30,8 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const searchButton = document.getElementById('search-button');
     const graphLayoutSelect = document.getElementById('graph-layout-select');
     const legendContent = document.getElementById('legend-content');
+    const dataTable = document.getElementById('data-table');
+    const dataTableSummary = document.getElementById('data-table-summary');
 
     const colorPalette = ['#5B8FF9', '#61DDAA', '#65789B', '#F6BD16', '#7262FD', '#78D3F8', '#9661BC', '#F6903D', '#008685', '#F08BB4'];
     const labelColorMap = {};
@@ -73,6 +75,73 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                 separator.textContent = '/';
                 breadcrumbTrail.appendChild(separator);
             }
+        });
+    }
+
+    function populateDataTable(records, keys) {
+        const thead = dataTable.querySelector('thead');
+        const tbody = dataTable.querySelector('tbody');
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+        dataTableSummary.innerHTML = '';
+    
+        if (!records || records.length === 0) return;
+    
+        // --- Summary Calculation ---
+        let summaryHTML = `<span class="summary-item"><strong>Total Records:</strong> ${records.length}</span>`;
+        const amountTotals = {};
+    
+        records.forEach(record => {
+            keys.forEach(key => {
+                const cellData = record[key];
+                if (cellData && cellData.properties) {
+                    Object.entries(cellData.properties).forEach(([propKey, propValue]) => {
+                        if (propKey.toLowerCase().includes('amount') && typeof propValue === 'number') {
+                            const header = `${key} (Total Amount)`;
+                            amountTotals[header] = (amountTotals[header] || 0) + propValue;
+                        }
+                    });
+                }
+            });
+        });
+    
+        for (const [key, total] of Object.entries(amountTotals)) {
+            summaryHTML += `<span class="summary-item"><strong>${key}:</strong> ${total.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>`;
+        }
+        dataTableSummary.innerHTML = summaryHTML;
+    
+        // --- Header Generation ---
+        const headerRow = document.createElement('tr');
+        keys.forEach(key => {
+            const th = document.createElement('th');
+            // Find the first non-null record for this key to determine the node type
+            const firstRecord = records.find(r => r[key] && (r[key]._labels || r[key]._relation_type));
+            const headerText = firstRecord ? (firstRecord[key]._labels?.[0] || firstRecord[key]._relation_type) : key;
+            th.textContent = headerText;
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+    
+        // --- Body Generation ---
+        records.forEach(record => {
+            const row = document.createElement('tr');
+            keys.forEach(key => {
+                const td = document.createElement('td');
+                const cellData = record[key];
+    
+                if (cellData && cellData.properties) {
+                    let listHtml = '<ul class="table-props-list">';
+                    for (const [propKey, propValue] of Object.entries(cellData.properties)) {
+                        listHtml += `<li><strong>${propKey}:</strong> ${formatPropertyValue(propKey, propValue)}</li>`;
+                    }
+                    listHtml += '</ul>';
+                    td.innerHTML = listHtml;
+                } else {
+                    td.textContent = formatPropertyValue(key, cellData);
+                }
+                row.appendChild(td);
+            });
+            tbody.appendChild(row);
         });
     }
 
@@ -280,11 +349,16 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-            const addedElements = cy.add(data);
+            
+            const addedElements = cy.add(data.graph);
             updateLegend();
+    
+            populateDataTable(data.records, data.keys);
+    
             return addedElements;
         } catch (error) {
             console.error("Failed to fetch graph data:", error);
+            populateDataTable([], []);
             return cy.collection();
         } finally {
             hideLoader();
@@ -300,6 +374,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         cy.elements().remove();
         propertiesTitle.textContent = "Properties";
         propertiesPanel.innerHTML = `<p>Click a node or edge to see its properties.</p>`;
+        populateDataTable([], []);
         
         const limit = limitInput.value;
         const textSearch = textSearchInput.value;
