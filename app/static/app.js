@@ -42,12 +42,38 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         return labelColorMap[label];
     }
 
+    function getReadableTextColor(hex) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        return (yiq >= 128) ? '#000000' : '#ffffff';
+    }
+    
     function updateBreadcrumbTrail() {
         if (!breadcrumbTrail) return;
-        const trail = Object.entries(clickedNodesHistory)
-            .map(([type, nodeInfo]) => `<strong>${type}</strong>: ${nodeInfo.name}`)
-            .join(' &rarr; ');
-        breadcrumbTrail.innerHTML = trail;
+        breadcrumbTrail.innerHTML = ''; // Clear previous breadcrumbs
+    
+        const historyEntries = Object.entries(clickedNodesHistory);
+    
+        historyEntries.forEach(([type, nodeInfo], index) => {
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'breadcrumb-value';
+            valueSpan.textContent = nodeInfo.name;
+            
+            const color = getColorForLabel(type);
+            valueSpan.style.backgroundColor = color;
+            valueSpan.style.color = getReadableTextColor(color);
+    
+            breadcrumbTrail.appendChild(valueSpan);
+    
+            if (index < historyEntries.length - 1) {
+                const separator = document.createElement('span');
+                separator.className = 'breadcrumb-separator';
+                separator.textContent = '/';
+                breadcrumbTrail.appendChild(separator);
+            }
+        });
     }
 
     const layouts = {
@@ -346,14 +372,33 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
 
     async function showElementProperties(element) {
         const props = await fetchElementProperties(element);
-        if(!props) {
+        
+        // Reset styles first
+        propertiesTitle.style.backgroundColor = 'transparent';
+        propertiesTitle.style.color = '#003366';
+        propertiesTitle.className = '';
+    
+        if (!props) {
             propertiesTitle.textContent = "Properties";
             propertiesPanel.innerHTML = `<p>Error loading properties.</p>`;
             return;
         }
-        
-        propertiesTitle.textContent = element.isNode() ? (props[currentQuery.caption_property] || props.name || "Node Properties") : (element.data('label') || "Edge Properties");
-        
+    
+        const isNode = element.isNode();
+        const nodeType = element.data('label');
+        const titleText = isNode 
+            ? (props[currentQuery.caption_property] || props.name || nodeType) 
+            : (nodeType || "Edge Properties");
+    
+        propertiesTitle.textContent = titleText;
+    
+        if (isNode && nodeType) {
+            const color = getColorForLabel(nodeType);
+            propertiesTitle.style.backgroundColor = color;
+            propertiesTitle.style.color = getReadableTextColor(color);
+            propertiesTitle.className = 'properties-title-styled';
+        }
+    
         let html = '<ul>';
         for (const [key, value] of Object.entries(props)) {
             html += `<li><strong>${key}:</strong> ${formatPropertyValue(key, value)}</li>`;
