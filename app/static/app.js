@@ -24,6 +24,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const edgeLengthSlider = document.getElementById('edge-length-slider');
     const nodeSpacingSlider = document.getElementById('node-spacing-slider');
     const queryTitle = document.getElementById('query-title');
+    const breadcrumbTrail = document.getElementById('breadcrumb-trail');
     const textSearchInput = document.getElementById('text-search-input');
     const limitInput = document.getElementById('limit-input');
     const searchButton = document.getElementById('search-button');
@@ -39,6 +40,14 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             colorIndex++;
         }
         return labelColorMap[label];
+    }
+
+    function updateBreadcrumbTrail() {
+        if (!breadcrumbTrail) return;
+        const trail = Object.entries(clickedNodesHistory)
+            .map(([type, nodeInfo]) => `<strong>${type}</strong>: ${nodeInfo.name}`)
+            .join(' &rarr; ');
+        breadcrumbTrail.innerHTML = trail;
     }
 
     const layouts = {
@@ -259,6 +268,8 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
 
     async function loadGraph(query) {
         currentQuery = query;
+        clickedNodesHistory = {};
+        updateBreadcrumbTrail();
         try { setActiveQueryKey(query.name); } catch(e) {}
         cy.elements().remove();
         propertiesTitle.textContent = "Properties";
@@ -311,6 +322,28 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         }
     }
 
+    function formatPropertyValue(key, value) {
+        if (value === null || value === undefined) return 'N/A';
+    
+        // Format numbers with commas
+        if (typeof value === 'number') {
+            return value.toLocaleString('en-US');
+        }
+    
+        // Format date strings to MM/DD/YYYY
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+            try {
+                const date = new Date(value);
+                return date.toLocaleDateString('en-US', { timeZone: 'UTC' });
+            } catch (e) {
+                return value; // Return original if parsing fails
+            }
+        }
+    
+        return value;
+    }
+    
+
     async function showElementProperties(element) {
         const props = await fetchElementProperties(element);
         if(!props) {
@@ -320,9 +353,10 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         }
         
         propertiesTitle.textContent = element.isNode() ? (props[currentQuery.caption_property] || props.name || "Node Properties") : (element.data('label') || "Edge Properties");
+        
         let html = '<ul>';
         for (const [key, value] of Object.entries(props)) {
-            html += `<li><strong>${key}:</strong> ${value}</li>`;
+            html += `<li><strong>${key}:</strong> ${formatPropertyValue(key, value)}</li>`;
         }
         html += '</ul>';
         propertiesPanel.innerHTML = html;
@@ -391,11 +425,25 @@ cy.on('dbltap', 'node', async function(evt) {
     const node = evt.target;
     const nodeId = node.id();
     const nodeType = node.data('label');
+    const nodeName = node.data(currentQuery.caption_property) || node.data('name');
 
-    clickedNodesHistory[nodeType] = nodeId; 
+    const existingNodeTypes = Object.keys(clickedNodesHistory);
+    const clickedIndex = existingNodeTypes.indexOf(nodeType);
+
+    if (clickedIndex > -1) {
+        const newHistory = {};
+        for (let i = 0; i < clickedIndex; i++) {
+            const type = existingNodeTypes[i];
+            newHistory[type] = clickedNodesHistory[type];
+        }
+        clickedNodesHistory = newHistory;
+    }
+    
+    clickedNodesHistory[nodeType] = { id: nodeId, name: nodeName };
+    updateBreadcrumbTrail();
 
     const historyParams = Object.entries(clickedNodesHistory)
-        .map(([type, id]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(id)}`)
+        .map(([type, nodeInfo]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(nodeInfo.id)}`)
         .join('&');
 
     let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 

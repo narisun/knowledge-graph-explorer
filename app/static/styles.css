@@ -78,17 +78,28 @@ html, body {
 }
 
 .center-header {
-    height: 45px;
+    height: auto;
+    min-height: 45px;
     background-color: #fff;
     border-bottom: 1px solid #ddd;
     display: flex;
     align-items: center;
-    padding: 0 1em;
+    justify-content: space-between;
+    padding: 0.5em 1em;
     box-sizing: border-box;
     flex-shrink: 0;
 }
-.center-header .query-title { font-size: 1.2em; font-weight: bold; color: #003366; margin-right: auto; }
-.center-header .search-controls { display: flex; align-items: center; gap: 1em; }
+.header-main {
+    display: flex;
+    flex-direction: column;
+}
+.center-header .query-title { font-size: 1.2em; font-weight: bold; color: #003366; }
+.breadcrumb-trail {
+    font-size: 0.85em;
+    color: #555;
+    margin-top: 4px;
+}
+.center-header .search-controls { display: flex; align-items: center; gap: 1em; margin-left: auto; }
 .center-header .search-controls input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; }
 .center-header .search-controls input[type="text"] { width: 200px; }
 .center-header .search-controls input[type="number"] { width: 60px; }
