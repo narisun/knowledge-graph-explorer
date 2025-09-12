@@ -98,7 +98,7 @@ class GraphRepository:
             if not query:
                  raise ValueError(f"Query type '{query_type}' not found in query set '{query_set_name}'.")
         
-        params.setdefault("limit", 25)
+        params.setdefault("limit", 10)
         params.setdefault("text_search", None)
 
         logger.info(f"Final Cypher Query:\n{query.strip()}")

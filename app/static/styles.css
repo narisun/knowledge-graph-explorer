@@ -162,9 +162,14 @@ html, body {
 #data-table td {
     padding: 8px 12px;
     border-bottom: 1px solid #ddd;
+    border-right: 1px solid #ddd;
     text-align: left;
-    vertical-align: top;
+    vertical-align: middle;
     color: #333;
+}
+
+#data-table td:last-child {
+    border-right: none;
 }
 
 #data-table tr:hover {

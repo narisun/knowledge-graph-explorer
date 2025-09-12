@@ -109,24 +109,47 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         }
         summaryTotals.innerHTML = summaryHTML;
     
-        // --- Body Generation ---
-        records.forEach(record => {
+        // --- Body Generation with Rowspan ---
+        const processedRecords = records.map(r => ({...r, _processed: {}}));
+
+        keys.forEach((key, colIndex) => {
+            for (let i = 0; i < processedRecords.length; i++) {
+                if (processedRecords[i]._processed[key]) continue;
+
+                const currentValue = JSON.stringify(processedRecords[i][key]);
+                let rowspan = 1;
+                for (let j = i + 1; j < processedRecords.length; j++) {
+                    if (JSON.stringify(processedRecords[j][key]) === currentValue) {
+                        rowspan++;
+                        processedRecords[j]._processed[key] = true; // Mark as handled
+                    } else {
+                        break;
+                    }
+                }
+                processedRecords[i]._processed[key] = { rowspan: rowspan };
+            }
+        });
+
+        processedRecords.forEach(record => {
             const row = document.createElement('tr');
             keys.forEach(key => {
-                const td = document.createElement('td');
-                const cellData = record[key];
+                if (record._processed[key] && record._processed[key].rowspan) {
+                    const td = document.createElement('td');
+                    td.setAttribute('rowspan', record._processed[key].rowspan);
+                    const cellData = record[key];
     
-                if (cellData && cellData.properties) {
-                    const type = cellData._labels?.[0] || cellData._relation_type;
-                    const propsToShow = currentQuery.table_display?.[type] || currentQuery.table_display?._default || [];
-                    
-                    const propValues = propsToShow.map(p => formatPropertyValue(p, cellData.properties[p])).join(', ');
-    
-                    td.innerHTML = `<span class="cell-type" style="color:${getColorForLabel(type)}">${type}</span><span class="cell-props">(${propValues})</span>`;
-                } else {
-                    td.textContent = formatPropertyValue(key, cellData);
+                    if (cellData && cellData.properties) {
+                        const type = cellData._labels?.[0] || cellData._relation_type;
+                        const propsToShow = currentQuery.table_display?.[type] || currentQuery.table_display?._default || [];
+                        
+                        const propValues = propsToShow.map(p => formatPropertyValue(p, cellData.properties[p])).join(', ');
+        
+                        td.innerHTML = `<span class="cell-type" style="color:${getColorForLabel(type)}">${type}</span><span class="cell-props">(${propValues})</span>`;
+                    } else {
+                        td.textContent = formatPropertyValue(key, cellData);
+                    }
+                    row.appendChild(td);
                 }
-                row.appendChild(td);
             });
             tbody.appendChild(row);
         });
@@ -520,7 +543,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             .join('&');
     
         let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 
-            + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
+            + `?limit=10&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
         
         if (historyParams) {
             neighborsUrl += `&${historyParams}`;
