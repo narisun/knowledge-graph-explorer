@@ -22,7 +22,7 @@ class GraphRepository:
     def get_available_queries(self) -> list[dict]:
         """
         Returns a list of all enabled queries with their metadata,
-        including the caption property.
+        including the caption property and table display config.
         """
         available_queries = []
         for name, details in self.query_sets.items():
@@ -32,7 +32,8 @@ class GraphRepository:
                     "display_name": details.get("display_name", name.replace('_', ' ').title()),
                     "description": details.get("description", ""),
                     "caption_property": details.get("caption_property", "name"),
-                    "mapping": details.get("mapping", {})
+                    "mapping": details.get("mapping", {}),
+                    "table_display": details.get("table_display", {})
                 })
         return available_queries
 

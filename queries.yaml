@@ -7,6 +7,14 @@ default_graph:
   caption_property: "name"
   mapping:
     node_size: "degree"
+  table_display:
+    _default: ["name"]
+    FinancialIntuition: ["name", "routingNumber"]
+    Client: ["name", "accountNumber"]
+    Counterparty: ["name", "accountNumber"]
+    Transaction: ["amount", "currency"]
+    PaymentProduct: ["name"]
+    HAS_ACCOUNT: ["account_type"]
   primary: >
     MATCH (n)
     WITH n, COUNT { (n)--() } AS degree
@@ -31,6 +39,210 @@ default_graph:
 
 prospect_view:
   display_name: "Prospect View (by Degree)"
+  description: "Prospect size is based on the number of connections (degree)."
+  enabled: true
+  caption_property: "name"
+  mapping:
+    node_size: "degree"
+  primary: >
+    MATCH (n)
+    WITH n, COUNT { (n)--() } AS degree
+    SET n.degree = degree, n.community = labels(n)[0]
+    WITH n
+    MATCH (n)-[r]-(m)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
+    RETURN n, r, m
+    ORDER BY n.degree DESC
+    LIMIT toInteger($limit)
+  neighbors: 
+    _default: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Prospect: >
+      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Client: >
+      MATCH (n:Client)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+
+prospect_view17:
+  display_name: "Prospect View 17 (by Degree)"
+  description: "Prospect size is based on the number of connections (degree)."
+  enabled: true
+  caption_property: "name"
+  mapping:
+    node_size: "degree"
+  primary: >
+    MATCH (n)
+    WITH n, COUNT { (n)--() } AS degree
+    SET n.degree = degree, n.community = labels(n)[0]
+    WITH n
+    MATCH (n)-[r]-(m)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
+    RETURN n, r, m
+    ORDER BY n.degree DESC
+    LIMIT toInteger($limit)
+  neighbors: 
+    _default: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Prospect: >
+      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Client: >
+      MATCH (n:Client)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+
+prospect_view16:
+  display_name: "Prospect View 16 (by Degree)"
+  description: "Prospect size is based on the number of connections (degree)."
+  enabled: true
+  caption_property: "name"
+  mapping:
+    node_size: "degree"
+  primary: >
+    MATCH (n)
+    WITH n, COUNT { (n)--() } AS degree
+    SET n.degree = degree, n.community = labels(n)[0]
+    WITH n
+    MATCH (n)-[r]-(m)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
+    RETURN n, r, m
+    ORDER BY n.degree DESC
+    LIMIT toInteger($limit)
+  neighbors: 
+    _default: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Prospect: >
+      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Client: >
+      MATCH (n:Client)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+
+prospect_view15:
+  display_name: "Prospect View 15 (by Degree)"
+  description: "Prospect size is based on the number of connections (degree)."
+  enabled: true
+  caption_property: "name"
+  mapping:
+    node_size: "degree"
+  primary: >
+    MATCH (n)
+    WITH n, COUNT { (n)--() } AS degree
+    SET n.degree = degree, n.community = labels(n)[0]
+    WITH n
+    MATCH (n)-[r]-(m)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
+    RETURN n, r, m
+    ORDER BY n.degree DESC
+    LIMIT toInteger($limit)
+  neighbors: 
+    _default: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Prospect: >
+      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Client: >
+      MATCH (n:Client)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+
+prospect_view14:
+  display_name: "Prospect View 14 (by Degree)"
+  description: "Prospect size is based on the number of connections (degree)."
+  enabled: true
+  caption_property: "name"
+  mapping:
+    node_size: "degree"
+  primary: >
+    MATCH (n)
+    WITH n, COUNT { (n)--() } AS degree
+    SET n.degree = degree, n.community = labels(n)[0]
+    WITH n
+    MATCH (n)-[r]-(m)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
+    RETURN n, r, m
+    ORDER BY n.degree DESC
+    LIMIT toInteger($limit)
+  neighbors: 
+    _default: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Prospect: >
+      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Client: >
+      MATCH (n:Client)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+
+prospect_view12:
+  display_name: "Prospect View 12 (by Degree)"
+  description: "Prospect size is based on the number of connections (degree)."
+  enabled: true
+  caption_property: "name"
+  mapping:
+    node_size: "degree"
+  primary: >
+    MATCH (n)
+    WITH n, COUNT { (n)--() } AS degree
+    SET n.degree = degree, n.community = labels(n)[0]
+    WITH n
+    MATCH (n)-[r]-(m)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
+    RETURN n, r, m
+    ORDER BY n.degree DESC
+    LIMIT toInteger($limit)
+  neighbors: 
+    _default: >
+      MATCH (n)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Prospect: >
+      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+    Client: >
+      MATCH (n:Client)-[r]-(m)
+      WHERE elementId(n) = $node_id
+      RETURN n, r, m
+      LIMIT toInteger($limit)
+
+prospect_view11:
+  display_name: "Prospect View 11 (by Degree)"
   description: "Prospect size is based on the number of connections (degree)."
   enabled: true
   caption_property: "name"

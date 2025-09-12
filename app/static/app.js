@@ -31,7 +31,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const graphLayoutSelect = document.getElementById('graph-layout-select');
     const legendContent = document.getElementById('legend-content');
     const dataTable = document.getElementById('data-table');
-    const dataTableSummary = document.getElementById('data-table-summary');
+    const summaryTotals = document.getElementById('summary-totals');
 
     const colorPalette = ['#5B8FF9', '#61DDAA', '#65789B', '#F6BD16', '#7262FD', '#78D3F8', '#9661BC', '#F6903D', '#008685', '#F08BB4'];
     const labelColorMap = {};
@@ -79,16 +79,14 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     }
 
     function populateDataTable(records, keys) {
-        const thead = dataTable.querySelector('thead');
         const tbody = dataTable.querySelector('tbody');
-        thead.innerHTML = '';
         tbody.innerHTML = '';
-        dataTableSummary.innerHTML = '';
+        summaryTotals.innerHTML = '';
     
         if (!records || records.length === 0) return;
     
         // --- Summary Calculation ---
-        let summaryHTML = `<span class="summary-item"><strong>Total Records:</strong> ${records.length}</span>`;
+        let summaryHTML = `<span class="summary-item"><strong>Records:</strong> ${records.length}</span>`;
         const amountTotals = {};
     
         records.forEach(record => {
@@ -97,7 +95,8 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                 if (cellData && cellData.properties) {
                     Object.entries(cellData.properties).forEach(([propKey, propValue]) => {
                         if (propKey.toLowerCase().includes('amount') && typeof propValue === 'number') {
-                            const header = `${key} (Total Amount)`;
+                            const type = cellData._labels?.[0] || cellData._relation_type || 'Amount';
+                            const header = `${type} (Total)`;
                             amountTotals[header] = (amountTotals[header] || 0) + propValue;
                         }
                     });
@@ -108,19 +107,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         for (const [key, total] of Object.entries(amountTotals)) {
             summaryHTML += `<span class="summary-item"><strong>${key}:</strong> ${total.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>`;
         }
-        dataTableSummary.innerHTML = summaryHTML;
-    
-        // --- Header Generation ---
-        const headerRow = document.createElement('tr');
-        keys.forEach(key => {
-            const th = document.createElement('th');
-            // Find the first non-null record for this key to determine the node type
-            const firstRecord = records.find(r => r[key] && (r[key]._labels || r[key]._relation_type));
-            const headerText = firstRecord ? (firstRecord[key]._labels?.[0] || firstRecord[key]._relation_type) : key;
-            th.textContent = headerText;
-            headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
+        summaryTotals.innerHTML = summaryHTML;
     
         // --- Body Generation ---
         records.forEach(record => {
@@ -130,12 +117,12 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                 const cellData = record[key];
     
                 if (cellData && cellData.properties) {
-                    let listHtml = '<ul class="table-props-list">';
-                    for (const [propKey, propValue] of Object.entries(cellData.properties)) {
-                        listHtml += `<li><strong>${propKey}:</strong> ${formatPropertyValue(propKey, propValue)}</li>`;
-                    }
-                    listHtml += '</ul>';
-                    td.innerHTML = listHtml;
+                    const type = cellData._labels?.[0] || cellData._relation_type;
+                    const propsToShow = currentQuery.table_display?.[type] || currentQuery.table_display?._default || [];
+                    
+                    const propValues = propsToShow.map(p => formatPropertyValue(p, cellData.properties[p])).join(', ');
+    
+                    td.innerHTML = `<span class="cell-type" style="color:${getColorForLabel(type)}">${type}</span><span class="cell-props">(${propValues})</span>`;
                 } else {
                     td.textContent = formatPropertyValue(key, cellData);
                 }
@@ -234,7 +221,14 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             avoidOverlap: true,
             nodeDimensionsIncludeLabels: false,
             maximal: false,
-            animate: false
+            animate: true,
+            animationDuration: 500,
+            transform: function (node, position) {
+                return {
+                    x: position.y,
+                    y: position.x
+                };
+            }
         }
     };
     
@@ -248,7 +242,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                     'label': (ele) => ele.data(currentQuery.caption_property) || ele.data('name'),
                     'width': (ele) => ele.data('relative_size') ? 8 + ele.data('relative_size') * 20 : 13,
                     'height': (ele) => ele.data('relative_size') ? 8 + ele.data('relative_size') * 20 : 13,
-                    'text-opacity': 0, 'color': '#333', 'font-size': '10px', 'border-width': 0 
+                    'text-opacity': 0, 'color': '#333', 'font-size': '12px', 'border-width': 0
                 } 
             },
             { selector: 'node.labels-visible', style: { 'text-opacity': 1 } },
@@ -258,7 +252,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                     'width': (ele) => ele.data('weight') ? Math.min(Math.max(ele.data('weight'), 1), 10) : 1,
                     'target-arrow-shape': 'triangle', 'curve-style': 'unbundled-bezier',
                     'line-color': '#ccc', 'target-arrow-color': '#ccc', 'label': 'data(label)',
-                    'text-opacity': 0, 'font-size': '9px', 'color': '#555'
+                    'text-opacity': 0, 'font-size': '10px', 'color': '#555'
                 } 
             },
             { selector: 'edge.labels-visible', style: { 'text-opacity': 1 } },
@@ -386,7 +380,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         
         await fetchDataAndRender(searchUrl);
         calculateRelativeSizes();
-        
+        handleZoom();
         reRunLayout();
         
         document.querySelectorAll('#query-list li').forEach(li => {
@@ -425,6 +419,10 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
 
     function formatPropertyValue(key, value) {
         if (value === null || value === undefined) return 'N/A';
+    
+        if (key && key.toLowerCase().includes('amount') && typeof value === 'number') {
+            return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        }
     
         // Format numbers with commas
         if (typeof value === 'number') {
@@ -495,89 +493,44 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         }
     });
 
+    cy.on('dbltap', 'node', async function(evt) {
+        clearTimeout(tapTimeout);
+        const node = evt.target;
+        const nodeId = node.id();
+        const nodeType = node.data('label');
+        const nodeName = node.data(currentQuery.caption_property) || node.data('name');
     
-async function locallyLayoutNewNeighbors(centerNode, addedElements) {
-    const newNodes = addedElements.filter('node');
-    if (newNodes.empty()) return;
-
-    // Lock all existing nodes to keep the graph stable during expansion
-    const existingNodes = cy.nodes().difference(newNodes);
-    existingNodes.lock();
-
-    try {
-        // Start new nodes at the center for a smooth animation from the parent
-        const centerPosition = centerNode.position();
-        newNodes.positions(() => ({ x: centerPosition.x, y: centerPosition.y }));
-
-        // Use the edge length slider to control the distance of the new nodes
-        const radius = parseInt(edgeLengthSlider.value, 10);
-        
-        // Define a bounding box around the clicked node to contain the new circular layout
-        const boundingBox = {
-            x1: centerPosition.x - radius,
-            y1: centerPosition.y - radius,
-            x2: centerPosition.x + radius,
-            y2: centerPosition.y + radius
-        };
-
-        // Run a simple, robust circle layout for the new nodes
-        const layout = cy.layout({
-            name: 'circle',
-            eles: newNodes,
-            fit: false, // This is critical to prevent the viewport from zooming/panning
-            boundingBox: boundingBox,
-            avoidOverlap: true,
-            radius: radius,
-            animate: true,
-            animationDuration: 500,
-        });
-
-        await new Promise(resolve => { layout.one('layoutstop', resolve); layout.run(); });
-
-    } finally {
-        // Unlock all nodes after the layout is complete
-        cy.nodes().unlock();
-    }
-}
-
-cy.on('dbltap', 'node', async function(evt) {
-    clearTimeout(tapTimeout);
-    const node = evt.target;
-    const nodeId = node.id();
-    const nodeType = node.data('label');
-    const nodeName = node.data(currentQuery.caption_property) || node.data('name');
-
-    const existingNodeTypes = Object.keys(clickedNodesHistory);
-    const clickedIndex = existingNodeTypes.indexOf(nodeType);
-
-    if (clickedIndex > -1) {
-        const newHistory = {};
-        for (let i = 0; i < clickedIndex; i++) {
-            const type = existingNodeTypes[i];
-            newHistory[type] = clickedNodesHistory[type];
+        const existingNodeTypes = Object.keys(clickedNodesHistory);
+        const clickedIndex = existingNodeTypes.indexOf(nodeType);
+    
+        if (clickedIndex > -1) {
+            const newHistory = {};
+            for (let i = 0; i < clickedIndex; i++) {
+                const type = existingNodeTypes[i];
+                newHistory[type] = clickedNodesHistory[type];
+            }
+            clickedNodesHistory = newHistory;
         }
-        clickedNodesHistory = newHistory;
-    }
+        
+        clickedNodesHistory[nodeType] = { id: nodeId, name: nodeName };
+        updateBreadcrumbTrail();
     
-    clickedNodesHistory[nodeType] = { id: nodeId, name: nodeName };
-    updateBreadcrumbTrail();
-
-    const historyParams = Object.entries(clickedNodesHistory)
-        .map(([type, nodeInfo]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(nodeInfo.id)}`)
-        .join('&');
-
-    let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 
-        + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
+        const historyParams = Object.entries(clickedNodesHistory)
+            .map(([type, nodeInfo]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(nodeInfo.id)}`)
+            .join('&');
     
-    if (historyParams) {
-        neighborsUrl += `&${historyParams}`;
-    }
-    
-    const added = await fetchDataAndRender(neighborsUrl);
-    calculateRelativeSizes();
-    await locallyLayoutNewNeighbors(node, added);
-});
-
+        let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 
+            + `?limit=15&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
+        
+        if (historyParams) {
+            neighborsUrl += `&${historyParams}`;
+        }
+        
+        await fetchDataAndRender(neighborsUrl);
+        calculateRelativeSizes();
+        reRunLayout(); // Re-run the selected layout
+        handleZoom();
+    });
 
     async function fetchElementProperties(element) {
         const id = element.id();
@@ -690,12 +643,19 @@ cy.on('dbltap', 'node', async function(evt) {
     });
 
     const labelThreshold = 1.2;
+    const baseNodeFontSize = 12;
+    const baseEdgeFontSize = 10;
+    const minFontSize = 4;
+    
     function handleZoom() {
-        if (cy.zoom() > labelThreshold) {
+        const zoom = cy.zoom();
+        if (zoom > labelThreshold) {
             cy.elements().addClass('labels-visible');
         } else {
             cy.elements().removeClass('labels-visible');
         }
+        cy.nodes().style('font-size', Math.max(minFontSize, baseNodeFontSize / zoom));
+        cy.edges().style('font-size', Math.max(minFontSize, baseEdgeFontSize / zoom));
     }
     cy.on('zoom pan', handleZoom);
     

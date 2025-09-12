@@ -98,9 +98,6 @@ html, body {
 .breadcrumb-container {
     display: flex;
     align-items: center;
-    background-color: #e9ecef;
-    padding: 0.5em 1em;
-    border-bottom: 1px solid #ddd;
     flex-wrap: wrap;
     gap: 0.25em;
 }
@@ -120,62 +117,67 @@ html, body {
 #cy {
     flex-grow: 1;
     position: relative;
-    height: 65%; /* Adjust height to make space for the table */
+    height: 65%;
 }
 
 .data-table-container {
-    height: 35%; /* The remaining height */
-    overflow: auto;
-    border-top: 2px solid #ccc;
-    background-color: #fff;
+    height: 35%;
     display: flex;
     flex-direction: column;
+    border-top: 2px solid #ccc;
+    background-color: #fff;
 }
 
 .data-table-summary {
-    padding: 8px 12px;
-    background-color: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5em 1em;
+    background-color: #e9ecef;
     border-bottom: 1px solid #ddd;
-    font-size: 0.9em;
-    color: #333;
+    flex-shrink: 0;
+}
+
+.summary-totals {
     display: flex;
     gap: 1.5em;
+    font-size: 0.9em;
+    color: #333;
 }
 .summary-item strong {
     color: #000;
 }
 
+.table-wrapper {
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
 #data-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85em;
+    font-size: 0.9em;
 }
 
-#data-table th, #data-table td {
+#data-table td {
     padding: 8px 12px;
     border-bottom: 1px solid #ddd;
     text-align: left;
     vertical-align: top;
+    color: #333;
 }
 
-#data-table th {
-    background-color: #f2f2f2;
-    font-weight: bold;
-    position: sticky;
-    top: 0;
-}
-
-#data-table tbody tr:hover {
+#data-table tr:hover {
     background-color: #f9f9f9;
 }
-.table-props-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
+.cell-type {
+    font-weight: bold;
+    margin-right: 0.5em;
 }
-.table-props-list li {
-    margin-bottom: 2px;
+.cell-props {
+    color: #555;
 }
+
 
 .loader-wrapper {
     position: absolute;
