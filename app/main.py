@@ -63,10 +63,12 @@ def get_available_queries(repo: repository.GraphRepository = Depends(get_repo)):
 def search_graph_data(
     query_set_name: str,
     request: Request,
+    months: int = 1,
     repo: repository.GraphRepository = Depends(get_repo)
 ):
     try:
         params = dict(request.query_params)
+        params["months"] = months
         return repo.execute_query(query_set_name, "primary", params)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))

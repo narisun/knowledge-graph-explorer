@@ -32,6 +32,8 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const legendContent = document.getElementById('legend-content');
     const dataTable = document.getElementById('data-table');
     const summaryTotals = document.getElementById('summary-totals');
+    const timescaleSlider = document.getElementById('timescale-slider');
+    const timescaleLabel = document.getElementById('timescale-label');
 
     const colorPalette = ['#5B8FF9', '#61DDAA', '#65789B', '#F6BD16', '#7262FD', '#78D3F8', '#9661BC', '#F6903D', '#008685', '#F08BB4'];
     const labelColorMap = {};
@@ -383,6 +385,12 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         }
     }
 
+    timescaleSlider.addEventListener('input', () => {
+        const months = parseInt(timescaleSlider.value);
+        timescaleLabel.textContent = `Last ${months} month(s)`;
+        loadGraph(currentQuery);
+    });
+
     async function loadGraph(query) {
         currentQuery = query;
         clickedNodesHistory = {};
@@ -395,8 +403,9 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         
         const limit = limitInput.value;
         const textSearch = textSearchInput.value;
+        const months = parseInt(timescaleSlider.value);
 
-        let searchUrl = SEARCH_API_URL_TEMPLATE.replace('{query_name}', query.name) + `?limit=${limit}`;
+        let searchUrl = SEARCH_API_URL_TEMPLATE.replace('{query_name}', query.name) + `?limit=${limit}&months=${months}`;
         if (textSearch) {
             searchUrl += `&text_search=${encodeURIComponent(textSearch)}`;
         }
@@ -542,8 +551,9 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             .map(([type, nodeInfo]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(nodeInfo.id)}`)
             .join('&');
     
+        const months = parseInt(timescaleSlider.value);
         let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 
-            + `?limit=10&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}`;
+            + `?limit=10&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}&months=${months}`;
         
         if (historyParams) {
             neighborsUrl += `&${historyParams}`;
