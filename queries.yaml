@@ -34,6 +34,7 @@ client_360_view:
       pp.name AS PayProduct,
       fi.name AS FI,
       p.name AS Prospect,
+      agg.monthId AS Month,
       agg.totalAmount AS totalAmount,
       agg.txCount AS txCount
     ORDER BY agg.totalAmount DESC
