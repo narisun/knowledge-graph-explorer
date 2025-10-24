@@ -39,9 +39,13 @@ class GraphRepository:
     def get_node_properties(self, node_id: str) -> dict | None:
         """
         Fetches all properties for a single node given its element ID.
+        It can handle synthetic IDs (e.g., "relId_nodeId") by parsing them.
         """
+        # Handle synthetic IDs by splitting on '_' and taking the last part
+        real_node_id = node_id.split('_')[-1]
+        
         query = "MATCH (n) WHERE elementId(n) = $node_id RETURN n"
-        params = {"node_id": node_id}
+        params = {"node_id": real_node_id}
         try:
             with self.driver.session() as session:
                 result = session.run(query, params)
@@ -49,10 +53,13 @@ class GraphRepository:
             if record and len(record) > 0:
                 node = record[0]
                 if hasattr(node, 'labels'):
-                    return dict(node.items())
+                    # Return properties, AND the real ID
+                    props = dict(node.items())
+                    props["original_element_id"] = real_node_id
+                    return props
             return None
         except Exception:
-            logger.error(f"An exception occurred fetching properties for node {node_id}", exc_info=True)
+            logger.error(f"An exception occurred fetching properties for node {node_id} (real: {real_node_id})", exc_info=True)
             return None
 
     def get_edge_properties(self, edge_id: str) -> dict | None:
@@ -109,8 +116,17 @@ class GraphRepository:
         
         mapping = query_set.get("mapping", {})
         caption_property = query_set.get("caption_property", "name")
+        
+        # --- THIS IS THE FIX ---
+        clicked_synthetic_id = None # Store the full ID passed from the frontend
 
         if query_type == "neighbors":
+            if "node_id" in params:
+                clicked_synthetic_id = params["node_id"] # This is the ID of the clicked node in Cytoscape
+                real_node_id = clicked_synthetic_id.split('_')[-1] # Get real ID for Cypher
+                
+                params["node_id"] = real_node_id # Overwrite params for the Cypher query
+                
             node_type = params.get("node_type")
             neighbor_queries = query_set.get("neighbors", {})
             query = neighbor_queries.get(node_type, neighbor_queries.get("_default"))
@@ -135,9 +151,9 @@ class GraphRepository:
         logger.info(f"Graph query returned {len(records)} records.")
         
         return {
-            "graph": self._nodes_to_cytoscape_format(records, mapping, caption_property),
-            "records": self._records_to_json_serializable(records), # Kept for backward compatibility, though unused by frontend
-            "keys": keys # Kept for backward compatibility, though unused by frontend
+            "graph": self._nodes_to_cytoscape_format(records, mapping, caption_property, query_type, clicked_synthetic_id),
+            "records": self._records_to_json_serializable(records), 
+            "keys": keys
         }
 
     def _records_to_json_serializable(self, records: list[Record]) -> list[dict]:
@@ -171,42 +187,88 @@ class GraphRepository:
             for record in records
         ]
 
-    def _nodes_to_cytoscape_format(self, records: list[Record], mapping: dict, caption_property: str) -> list[dict]:
+    def _nodes_to_cytoscape_format(self, records: list[Record], mapping: dict, caption_property: str, query_type: str, clicked_synthetic_id: str | None = None) -> list[dict]:
         nodes, edges, parent_nodes = {}, {}, set()
         
         node_size_prop = mapping.get("node_size")
         node_community_prop = mapping.get("node_community")
         edge_weight_prop = mapping.get("edge_weight")
 
+        is_neighbor_query = (query_type == "neighbors")
+
         for record in records:
+            record_rel = None
+            record_nodes = []
+
+            # Find all relationships and nodes in the current record
             for _, value in record.items():
                 if value is None: continue
-                if hasattr(value, 'labels'): # It's a Node
-                    node_id = value.element_id
+                if hasattr(value, 'start_node'):
+                    record_rel = value
+                elif hasattr(value, 'labels'):
+                    record_nodes.append(value)
+            
+            # --- Primary Query (e.g., initial search) ---
+            if not is_neighbor_query:
+                for node in record_nodes:
+                    node_id = node.element_id
                     if node_id not in nodes:
-                        node_label = list(value.labels)[0] if value.labels else "Node"
-                        caption = value.get(caption_property, value.get("name", node_label))
+                        node_label = list(node.labels)[0] if node.labels else "Node"
+                        caption = node.get(caption_property, node.get("name", node_label))
                         node_data = {
                             "id": node_id,
                             "label": node_label,
-                            "name": caption
+                            "name": caption,
+                            "original_element_id": node.element_id # Store for consistency
                         }
-
-                        if node_size_prop and value.get(node_size_prop) is not None:
-                            node_data["size"] = value.get(node_size_prop)
-                        if node_community_prop and value.get(node_community_prop) is not None:
-                            community_id = str(value.get(node_community_prop))
+                        if node_size_prop and node.get(node_size_prop) is not None:
+                            node_data["size"] = node.get(node_size_prop)
+                        if node_community_prop and node.get(node_community_prop) is not None:
+                            community_id = str(node.get(node_community_prop))
                             node_data["parent"] = community_id
                             parent_nodes.add(community_id)
                         nodes[node_id] = {"data": node_data}
+            
+            # --- Neighbor Query (drill-down) ---
+            elif record_rel:
+                edge_id = record_rel.element_id
+                
+                # --- THIS IS THE FIX ---
+                # The parent_id *must* be the ID of the node that was clicked in Cytoscape
+                parent_id = clicked_synthetic_id
 
-                elif hasattr(value, 'start_node'): # It's a Relationship
-                    edge_id = value.element_id
+                # Find the child node (the one that is NOT the parent)
+                child_node = next((n for n in record_nodes if n.element_id == record_rel.end_node.element_id), None)
+                
+                if child_node:
+                    # Create a NEW, UNIQUE ID for the child node to force a "tree" structure
+                    unique_child_id = f"{edge_id}_{child_node.element_id}"
+                    
+                    if unique_child_id not in nodes:
+                        node_label = list(child_node.labels)[0] if child_node.labels else "Node"
+                        caption = child_node.get(caption_property, child_node.get("name", node_label))
+                        node_data = {
+                            "id": unique_child_id, # <-- THE SYNTHETIC ID
+                            "label": node_label,
+                            "name": caption,
+                            "original_element_id": child_node.element_id # Store real ID
+                        }
+                        if node_size_prop and child_node.get(node_size_prop) is not None:
+                            node_data["size"] = child_node.get(node_size_prop)
+                        
+                        nodes[unique_child_id] = {"data": node_data}
+
+                    # Add the NEW EDGE
                     if edge_id not in edges:
-                        edge_data = { "id": edge_id, "source": value.start_node.element_id, "target": value.end_node.element_id, "label": type(value).__name__ }
-                        if edge_weight_prop and value.get(edge_weight_prop) is not None:
-                            edge_data["weight"] = value.get(edge_weight_prop)
+                        edge_data = { 
+                            "id": edge_id, 
+                            "source": parent_id, # <-- Parent's SYNTHETIC ID
+                            "target": unique_child_id, # <-- Child's SYNTHETIC ID
+                            "label": type(record_rel).__name__ 
+                        }
+                        if edge_weight_prop and record_rel.get(edge_weight_prop) is not None:
+                            edge_data["weight"] = record_rel.get(edge_weight_prop)
                         edges[edge_id] = {"data": edge_data}
-        
+
         compound_nodes = [{"data": {"id": pid}} for pid in parent_nodes]
         return list(nodes.values()) + list(edges.values()) + compound_nodes

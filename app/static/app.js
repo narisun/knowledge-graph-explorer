@@ -481,7 +481,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             queryList.appendChild(listItem);
         });
         
-        // Auto-load the first query (which is now client_360_view)
+        // Auto-load the first query (which is now client_30_view)
         await loadGraph(queries[0]);
     }
 
@@ -539,7 +539,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     
         let html = '<ul>';
         for (const [key, value] of Object.entries(props)) {
-            if (key === 'display_name') continue; // Don't show redundant info
+            if (key === 'display_name' || key === 'original_element_id') continue; // Don't show redundant info
             html += `<li><strong>${key}:</strong> ${formatPropertyValue(key, value)}</li>`;
         }
         html += '</ul>';
@@ -562,30 +562,26 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     cy.on('dbltap', 'node', async function(evt) {
         clearTimeout(tapTimeout);
         const node = evt.target;
-        const nodeId = node.id();
+        const nodeId = node.id(); // This is the synthetic ID (e.g., "rel_node")
         const nodeType = node.data('label');
         const nodeName = node.data(currentQuery.caption_property) || node.data('name');
-    
-        const existingNodeTypes = Object.keys(clickedNodesHistory);
-        const clickedIndex = existingNodeTypes.indexOf(nodeType);
-    
-        if (clickedIndex > -1) {
-            const newHistory = {};
-            for (let i = 0; i < clickedIndex; i++) {
-                const type = existingNodeTypes[i];
-                newHistory[type] = clickedNodesHistory[type];
-            }
-            clickedNodesHistory = newHistory;
-        }
         
-        clickedNodesHistory[nodeType] = { id: nodeId, name: nodeName };
+        // Get the *real* Neo4j ID for history params
+        // Fallback to node.id() for root nodes which don't have original_element_id
+        const originalElementId = node.data('original_element_id') || node.id(); 
+
+        // Store both the synthetic ID (for breadcrumb) and real ID (for API history)
+        clickedNodesHistory[nodeType] = { id: nodeId, name: nodeName, real_id: originalElementId };
         updateBreadcrumbTrail();
     
+        // Build history params using the REAL IDs
         const historyParams = Object.entries(clickedNodesHistory)
-            .map(([type, nodeInfo]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(nodeInfo.id)}`)
+            .map(([type, nodeInfo]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(nodeInfo.real_id)}`)
             .join('&');
     
         const months = parseInt(timescaleSlider.value);
+        
+        // Call the API using the SYNTHETIC ID (nodeId) in the URL
         let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 
             + `?limit=10&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}&months=${months}`;
         
@@ -600,9 +596,12 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     });
 
     async function fetchElementProperties(element) {
-        const id = element.id();
+        // Use the original_element_id if it exists, otherwise fall back to the element's ID
         const isNode = element.isNode();
+        const id = isNode ? (element.data('original_element_id') || element.id()) : element.id();
+        
         const url = isNode ? NODE_PROPERTIES_API_URL_TEMPLATE.replace('{node_id}', id) : EDGE_PROPERTIES_API_URL_TEMPLATE.replace('{edge_id}', id);
+        
         try {
             const response = await fetch(url);
             if (!response.ok) return null;
@@ -632,7 +631,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                 if (props) {
                     content += '<hr style="margin: 2px 0;"><ul>';
                     for (const [key, value] of Object.entries(props)) {
-                        if (key === 'display_name') continue;
+                        if (key === 'display_name' || key === 'original_element_id') continue;
                         content += `<li style="font-size: 0.8em;"><strong>${key}:</strong> ${formatPropertyValue(key, value)}</li>`;
                     }
                     content += '</ul>';
