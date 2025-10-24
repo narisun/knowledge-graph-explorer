@@ -1,42 +1,5 @@
 # queries.yaml
 
-default_graph:
-  display_name: "Default View (by Degree)"
-  description: "Node size is based on the number of connections (degree)."
-  enabled: true
-  caption_property: "name"
-  mapping:
-    node_size: "degree"
-  table_display:
-    _default: ["name"]
-    FinancialIntuition: ["name", "routingNumber"]
-    Client: ["name", "accountNumber"]
-    Counterparty: ["name", "accountNumber"]
-    Transaction: ["amount", "currency"]
-    PaymentProduct: ["name"]
-    HAS_ACCOUNT: ["account_type"]
-  primary: >
-    MATCH (n)
-    WITH n, COUNT { (n)--() } AS degree
-    SET n.degree = degree, n.community = labels(n)[0]
-    WITH n
-    MATCH (n)-[r]-(m)
-    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
-    RETURN n, r, m
-    ORDER BY n.degree DESC
-    LIMIT toInteger($limit)
-  neighbors: 
-    _default: >
-      MATCH (n)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Bank: >
-      MATCH (n)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-
 # --- QUERY SET FOR CLIENT 360 DRILLDOWN ---
 
 client_360_view:
@@ -50,8 +13,34 @@ client_360_view:
   table_display:
     _default: ["name", "totalAmount", "txCount"]
 
+  # This query populates the static table at the bottom.
+  table_query: >
+    WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+    MATCH (agg:AggTx)
+    WHERE agg.monthId IN validMonths
+    MATCH (agg)-[:FOR_CLIENT]->(c)
+    WHERE ($text_search IS NULL OR c.name CONTAINS $text_search OR c.clientId = $text_search)
+    MATCH (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp)
+    MATCH (agg)-[:FOR_FLOW]->(f)
+    MATCH (agg)-[:FOR_CHANNEL]->(ch)
+    MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
+    MATCH (agg)-[:FOR_FI]->(fi)
+    MATCH (agg)-[:FOR_PROSPECT]->(p)
+    RETURN
+      c.name AS Client,
+      dp.name AS DepProduct,
+      f.direction AS Flow,
+      ch.name AS Channel,
+      pp.name AS PayProduct,
+      fi.name AS FI,
+      p.name AS Prospect,
+      agg.totalAmount AS totalAmount,
+      agg.txCount AS txCount
+    ORDER BY agg.totalAmount DESC
+    LIMIT toInteger($limit)
+
   primary: >
-    WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+    WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
     MATCH (n:Client)
     WHERE (n.name CONTAINS $text_search OR $text_search IS NULL OR n.clientId = $text_search)
     WITH n, validMonths
@@ -64,9 +53,9 @@ client_360_view:
     ORDER BY totalAmount DESC
     LIMIT toInteger($limit)
 
-  neighbors: 
+  neighbors:
     _default: >
-      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       WHERE elementId(c) = $node_id AND agg.monthId IN validMonths
       WITH c, dp, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
@@ -77,10 +66,10 @@ client_360_view:
       RETURN c, rel, dp
 
     DepositProduct: >
-      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
-      WHERE elementId(dp) = $node_id 
-        AND elementId(c) = $Client_node_id 
+      WHERE elementId(dp) = $node_id
+        AND elementId(c) = $Client_node_id
         AND agg.monthId IN validMonths
       MATCH (agg)-[:FOR_FLOW]->(f)
       WITH dp, f, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
@@ -91,10 +80,10 @@ client_360_view:
       RETURN dp, rel, f
 
     Flow: >
-      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       MATCH (agg)-[:FOR_FLOW]->(f)
-      WHERE elementId(f) = $node_id 
+      WHERE elementId(f) = $node_id
         AND elementId(dp) = $DepositProduct_node_id
         AND elementId(c) = $Client_node_id
         AND agg.monthId IN validMonths
@@ -107,11 +96,11 @@ client_360_view:
       RETURN f, rel, ch
 
     Channel: >
-      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       MATCH (agg)-[:FOR_FLOW]->(f)
       MATCH (agg)-[:FOR_CHANNEL]->(ch)
-      WHERE elementId(ch) = $node_id 
+      WHERE elementId(ch) = $node_id
         AND elementId(f) = $Flow_node_id
         AND elementId(dp) = $DepositProduct_node_id
         AND elementId(c) = $Client_node_id
@@ -125,12 +114,12 @@ client_360_view:
       RETURN ch, rel, pp
 
     PaymentProduct: >
-      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       MATCH (agg)-[:FOR_FLOW]->(f)
       MATCH (agg)-[:FOR_CHANNEL]->(ch)
       MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
-      WHERE elementId(pp) = $node_id 
+      WHERE elementId(pp) = $node_id
         AND elementId(ch) = $Channel_node_id
         AND elementId(f) = $Flow_node_id
         AND elementId(dp) = $DepositProduct_node_id
@@ -145,13 +134,13 @@ client_360_view:
       RETURN pp, rel, fi
 
     FinancialInstitution: >
-      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       MATCH (agg)-[:FOR_FLOW]->(f)
       MATCH (agg)-[:FOR_CHANNEL]->(ch)
       MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
       MATCH (agg)-[:FOR_FI]->(fi)
-      WHERE elementId(fi) = $node_id 
+      WHERE elementId(fi) = $node_id
         AND elementId(pp) = $PaymentProduct_node_id
         AND elementId(ch) = $Channel_node_id
         AND elementId(f) = $Flow_node_id

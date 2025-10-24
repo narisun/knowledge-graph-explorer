@@ -6,17 +6,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const INFO_API_URL = '/api/connection-info';
     const QUERIES_API_URL = '/api/queries';
-    function setActiveQueryKey(key){ const i=document.getElementById('current-query-key'); if(i){ i.value = key || ''; } }
+function setActiveQueryKey(key){ const i=document.getElementById('current-query-key'); if(i){ i.value = key || ''; } }
 
     const SEARCH_API_URL_TEMPLATE = '/api/search/{query_name}';
-    const CHART_API_URL_TEMPLATE = '/api/search/{query_name}/chart';
     const NEIGHBORS_API_URL_TEMPLATE = '/api/nodes/{node_id}/neighbors';
     const NODE_PROPERTIES_API_URL_TEMPLATE = '/api/nodes/{node_id}/properties';
     const EDGE_PROPERTIES_API_URL_TEMPLATE = '/api/edges/{edge_id}/properties';
 
     let currentQuery = {};
     let clickedNodesHistory = {};
-    let timeSeriesChart;
 
     const cyContainer = document.getElementById('cy');
     const loader = document.getElementById('loader');
@@ -36,27 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const summaryTotals = document.getElementById('summary-totals');
     const timescaleSlider = document.getElementById('timescale-slider');
     const timescaleLabel = document.getElementById('timescale-label');
-    const tabs = document.querySelectorAll('.tab-button');
-    const tabContents = document.querySelectorAll('.tab-content');
-
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            const tabName = tab.dataset.tab;
-            tabContents.forEach(content => {
-                if (content.id === `${tabName}-content`) {
-                    content.classList.add('active');
-                } else {
-                    content.classList.remove('active');
-                }
-            });
-
-            if (tabName === 'chart') {
-                loadChartData(currentQuery);
-            }
-        });
-    });
+    const downloadCsvButton = document.getElementById('download-csv-button'); // <-- ADDED
 
     const colorPalette = ['#5B8FF9', '#61DDAA', '#65789B', '#F6BD16', '#7262FD', '#78D3F8', '#9661BC', '#F6903D', '#008685', '#F08BB4'];
     const labelColorMap = {};
@@ -103,13 +81,24 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // --- SIMPLIFIED FUNCTION ---
     function populateDataTable(records, keys) {
-        const tbody = dataTable.querySelector('tbody');
-        tbody.innerHTML = '';
+        // Clear old header and body
+        const oldThead = dataTable.querySelector('thead');
+        if (oldThead) oldThead.remove();
+        const oldTbody = dataTable.querySelector('tbody');
+        const newTbody = oldTbody.cloneNode(false); // Create new empty tbody
+        oldTbody.parentNode.replaceChild(newTbody, oldTbody);
+        
         summaryTotals.innerHTML = '';
     
-        if (!records || records.length === 0) return;
-    
+        if (!records || records.length === 0) {
+            downloadCsvButton.style.display = 'none'; // Hide download button if no data
+            return;
+        }
+        
+        downloadCsvButton.style.display = 'block'; // Show download button
+
         // --- Summary Calculation ---
         let summaryHTML = `<span class="summary-item"><strong>Records:</strong> ${records.length}</span>`;
         const amountTotals = {};
@@ -117,108 +106,81 @@ document.addEventListener('DOMContentLoaded', function() {
         records.forEach(record => {
             keys.forEach(key => {
                 const cellData = record[key];
-                if (cellData && cellData.properties) {
-                    Object.entries(cellData.properties).forEach(([propKey, propValue]) => {
-                        if (propKey.toLowerCase().includes('amount') && typeof propValue === 'number') {
-                            const type = cellData._labels?.[0] || cellData._relation_type || 'Amount';
-                            const header = `${type} (Total)`;
-                            amountTotals[header] = (amountTotals[header] || 0) + propValue;
-                        }
-                    });
+                if (key.toLowerCase().includes('amount') && typeof cellData === 'number') {
+                    amountTotals['Total Amount'] = (amountTotals['Total Amount'] || 0) + cellData;
+                }
+                if (key.toLowerCase().includes('count') && typeof cellData === 'number') {
+                    amountTotals['Total Count'] = (amountTotals['Total Count'] || 0) + cellData;
                 }
             });
         });
     
         for (const [key, total] of Object.entries(amountTotals)) {
-            summaryHTML += `<span class="summary-item"><strong>${key}:</strong> ${total.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>`;
+             const formattedTotal = key.includes('Amount') 
+                ? total.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+                : total.toLocaleString('en-US');
+            summaryHTML += `<span class="summary-item"><strong>${key}:</strong> ${formattedTotal}</span>`;
         }
         summaryTotals.innerHTML = summaryHTML;
     
-        // --- Body Generation with Rowspan ---
-        const processedRecords = records.map(r => ({...r, _processed: {}}));
-
-        keys.forEach((key, colIndex) => {
-            for (let i = 0; i < processedRecords.length; i++) {
-                if (processedRecords[i]._processed[key]) continue;
-
-                const currentValue = JSON.stringify(processedRecords[i][key]);
-                let rowspan = 1;
-                for (let j = i + 1; j < processedRecords.length; j++) {
-                    if (JSON.stringify(processedRecords[j][key]) === currentValue) {
-                        rowspan++;
-                        processedRecords[j]._processed[key] = true; // Mark as handled
-                    } else {
-                        break;
-                    }
-                }
-                processedRecords[i]._processed[key] = { rowspan: rowspan };
-            }
+        // --- Simple Table Builder ---
+        const thead = document.createElement('thead');
+        const tr = document.createElement('tr');
+        keys.forEach(key => {
+            const th = document.createElement('th');
+            th.textContent = key;
+            tr.appendChild(th);
         });
+        thead.appendChild(tr);
+        dataTable.prepend(thead);
 
-        processedRecords.forEach(record => {
+        records.forEach(record => {
             const row = document.createElement('tr');
             keys.forEach(key => {
-                if (record._processed[key] && record._processed[key].rowspan) {
-                    const td = document.createElement('td');
-                    td.setAttribute('rowspan', record._processed[key].rowspan);
-                    const cellData = record[key];
-    
-                    if (cellData && cellData.properties) {
-                        const type = cellData._labels?.[0] || cellData._relation_type;
-                        const propsToShow = currentQuery.table_display?.[type] || currentQuery.table_display?._default || [];
-                        
-                        const propValues = propsToShow.map(p => formatPropertyValue(p, cellData.properties[p])).join(', ');
-        
-                        td.innerHTML = `<span class="cell-type" style="color:${getColorForLabel(type)}">${type}</span><span class="cell-props">(${propValues})</span>`;
-                    } else {
-                        td.textContent = formatPropertyValue(key, cellData);
-                    }
-                    row.appendChild(td);
-                }
+                const td = document.createElement('td');
+                td.textContent = formatPropertyValue(key, record[key]);
+                row.appendChild(td);
             });
-            tbody.appendChild(row);
+            newTbody.appendChild(row);
         });
     }
+    // --- END SIMPLIFIED FUNCTION ---
 
-    async function loadChartData(query) {
-        const months = parseInt(timescaleSlider.value);
-        const url = CHART_API_URL_TEMPLATE.replace('{query_name}', query.name) + `?months=${months}`;
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            renderChart(data);
-        } catch (error) {
-            console.error("Failed to fetch chart data:", error);
-        }
-    }
+    // --- NEW FUNCTION: Download CSV ---
+    function downloadTableAsCSV() {
+        const table = document.getElementById('data-table');
+        let csv = [];
 
-    function renderChart(data) {
-        const ctx = document.getElementById('time-series-chart').getContext('2d');
-        if (timeSeriesChart) {
-            timeSeriesChart.destroy();
-        }
-        timeSeriesChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.labels,
-                datasets: [
-                    {
-                        label: 'Total Amount',
-                        data: data.datasets.total_amount,
-                        borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Transaction Volume',
-                        data: data.datasets.transaction_volume,
-                        borderColor: 'rgb(255, 99, 132)',
-                        tension: 0.1
-                    }
-                ]
-            }
+        // 1. Get Headers
+        const headers = [];
+        table.querySelectorAll('thead th').forEach(th => headers.push(`"${th.textContent}"`));
+        csv.push(headers.join(','));
+
+        // 2. Get Rows
+        table.querySelectorAll('tbody tr').forEach(row => {
+            const rowData = [];
+            row.querySelectorAll('td').forEach(td => {
+                // Escape quotes by replacing them with double-quotes
+                const text = td.textContent.replace(/"/g, '""');
+                rowData.push(`"${text}"`);
+            });
+            csv.push(rowData.join(','));
         });
+
+        // 3. Create and Download Blob
+        const csvContent = "data:text/csv;charset=utf-8," + csv.join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', 'graph_data_export.csv');
+        document.body.appendChild(link);
+        
+        link.click(); // This will download the data
+        
+        document.body.removeChild(link);
     }
+    // --- END NEW FUNCTION ---
+
 
     const layouts = {
         cola: {
@@ -424,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    async function fetchDataAndRender(url) {
+    async function fetchDataAndRender(url, isDrillDown = false) {
         showLoader();
         cyContainer.style.opacity = 0.5;
         try {
@@ -432,15 +394,22 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             
+            // data payload is: { "graph": ..., "table": ... }
+            
             const addedElements = cy.add(data.graph);
             updateLegend();
     
-            populateDataTable(data.records, data.keys);
+            // Only update the table on the *initial search*, not on graph drill-down
+            if (!isDrillDown) {
+                populateDataTable(data.table.records, data.table.keys);
+            }
     
             return addedElements;
         } catch (error) {
             console.error("Failed to fetch graph data:", error);
-            populateDataTable([], []);
+            if (!isDrillDown) {
+                populateDataTable([], []);
+            }
             return cy.collection();
         } finally {
             hideLoader();
@@ -451,7 +420,6 @@ document.addEventListener('DOMContentLoaded', function() {
     timescaleSlider.addEventListener('input', () => {
         const months = parseInt(timescaleSlider.value);
         timescaleLabel.textContent = `Last ${months} month(s)`;
-        loadGraph(currentQuery);
     });
 
     async function loadGraph(query) {
@@ -462,7 +430,6 @@ document.addEventListener('DOMContentLoaded', function() {
         cy.elements().remove();
         propertiesTitle.textContent = "Properties";
         propertiesPanel.innerHTML = `<p>Click a node or edge to see its properties.</p>`;
-        populateDataTable([], []);
         
         const limit = limitInput.value;
         const textSearch = textSearchInput.value;
@@ -473,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function() {
             searchUrl += `&text_search=${encodeURIComponent(textSearch)}`;
         }
         
-        await fetchDataAndRender(searchUrl);
+        await fetchDataAndRender(searchUrl, false); 
         calculateRelativeSizes();
         handleZoom();
         reRunLayout();
@@ -490,11 +457,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     searchButton.addEventListener('click', () => { if (currentQuery.name) loadGraph(currentQuery); });
     textSearchInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') searchButton.click(); });
+    downloadCsvButton.addEventListener('click', downloadTableAsCSV); // <-- ADDED
 
     async function populateNav() {
         const response = await fetch(QUERIES_API_URL);
         const queries = await response.json();
         const queryList = document.getElementById('query-list');
+        
+        if (!queries || queries.length === 0) {
+            queryTitle.textContent = "No queries configured.";
+            hideLoader();
+            return;
+        }
+
         queries.forEach(query => {
             const listItem = document.createElement('li');
             listItem.dataset.queryName = query.name;
@@ -505,11 +480,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             queryList.appendChild(listItem);
         });
-        if (queries.length > 0) {
-            await loadGraph(queries[0]);
-        } else {
-            hideLoader();
-        }
+        
+        // Auto-load the first query (which is now client_360_view)
+        await loadGraph(queries[0]);
     }
 
     function formatPropertyValue(key, value) {
@@ -519,18 +492,16 @@ document.addEventListener('DOMContentLoaded', function() {
             return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
         }
     
-        // Format numbers with commas
         if (typeof value === 'number') {
             return value.toLocaleString('en-US');
         }
     
-        // Format date strings to MM/DD/YYYY
         if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
             try {
                 const date = new Date(value);
                 return date.toLocaleDateString('en-US', { timeZone: 'UTC' });
             } catch (e) {
-                return value; // Return original if parsing fails
+                return value;
             }
         }
     
@@ -541,7 +512,6 @@ document.addEventListener('DOMContentLoaded', function() {
     async function showElementProperties(element) {
         const props = await fetchElementProperties(element);
         
-        // Reset styles first
         propertiesTitle.style.backgroundColor = 'transparent';
         propertiesTitle.style.color = '#003366';
         propertiesTitle.className = '';
@@ -556,7 +526,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const nodeType = element.data('label');
         const titleText = isNode 
             ? (props[currentQuery.caption_property] || props.name || nodeType) 
-            : (nodeType || "Edge Properties");
+            : (element.data('label') || "Edge Properties");
     
         propertiesTitle.textContent = titleText;
     
@@ -569,6 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
         let html = '<ul>';
         for (const [key, value] of Object.entries(props)) {
+            if (key === 'display_name') continue; // Don't show redundant info
             html += `<li><strong>${key}:</strong> ${formatPropertyValue(key, value)}</li>`;
         }
         html += '</ul>';
@@ -622,9 +593,9 @@ document.addEventListener('DOMContentLoaded', function() {
             neighborsUrl += `&${historyParams}`;
         }
         
-        await fetchDataAndRender(neighborsUrl);
+        await fetchDataAndRender(neighborsUrl, true); // isDrillDown = true
         calculateRelativeSizes();
-        reRunLayout(); // Re-run the selected layout
+        reRunLayout(); 
         handleZoom();
     });
 
@@ -661,7 +632,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (props) {
                     content += '<hr style="margin: 2px 0;"><ul>';
                     for (const [key, value] of Object.entries(props)) {
-                        content += `<li style="font-size: 0.8em;"><strong>${key}:</strong> ${value}</li>`;
+                        if (key === 'display_name') continue;
+                        content += `<li style="font-size: 0.8em;"><strong>${key}:</strong> ${formatPropertyValue(key, value)}</li>`;
                     }
                     content += '</ul>';
                 } else {
@@ -691,14 +663,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // --- Drag-to-Pull-Children Logic with Debugging ---
     let draggedParent = null;
     let dragOffsets = {};
 
     cy.on('grab', 'node', function(evt) {
         draggedParent = evt.target;
         const parentPos = draggedParent.position();
-        console.log(`GRABBED node ${draggedParent.id()} at`, parentPos);
         
         draggedParent.neighborhood('node').forEach(function(neighbor) {
             const neighborPos = neighbor.position();
@@ -707,13 +677,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 y: neighborPos.y - parentPos.y
             };
         });
-        console.log('Calculated offsets for neighbors:', dragOffsets);
     });
 
     cy.on('drag', 'node', function(evt) {
         if (draggedParent && draggedParent === evt.target) {
             const parentPos = draggedParent.position();
-            console.log(`DRAGGING node ${draggedParent.id()} to`, parentPos);
             
             draggedParent.neighborhood('node').forEach(function(neighbor) {
                 const offset = dragOffsets[neighbor.id()];
@@ -723,7 +691,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         y: parentPos.y + offset.y
                     };
                     neighbor.position(newPos);
-                    console.log(`...moving neighbor ${neighbor.id()} to`, newPos);
                 }
             });
         }
@@ -731,10 +698,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     cy.on('free', 'node', function(evt) {
         if (draggedParent && draggedParent === evt.target) {
-            console.log(`FREED node ${draggedParent.id()}`);
             draggedParent = null;
             dragOffsets = {};
-            console.log('Cleared drag state.');
         }
     });
 

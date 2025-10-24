@@ -69,7 +69,20 @@ def search_graph_data(
     try:
         params = dict(request.query_params)
         params["months"] = months
-        return repo.execute_query(query_set_name, "primary", params)
+        
+        # 1. Execute the graph query
+        graph_result = repo.execute_query(query_set_name, "primary", params)
+        
+        # 2. Get and execute the separate table query
+        table_query_string = repo.query_sets.get(query_set_name, {}).get("table_query")
+        table_result = repo.execute_table_query(table_query_string, params)
+
+        # 3. Return a combined payload
+        return {
+            "graph": graph_result["graph"],
+            "table": table_result
+        }
+        
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except PermissionError as pe:
@@ -78,45 +91,39 @@ def search_graph_data(
         logger.error("An error occurred in the search graph endpoint.", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
-@app.get("/api/search/{query_set_name}/chart", summary="Get chart data for a named query set")
-def get_chart_data(
-    query_set_name: str,
-    months: int = 1,
-    repo: repository.GraphRepository = Depends(get_repo)
-):
-    try:
-        params = {"months": months}
-        return repo.execute_query(query_set_name, "chart", params)
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except PermissionError as pe:
-        raise HTTPException(status_code=403, detail=str(pe))
-    except Exception:
-        logger.error("An error occurred in the chart data endpoint.", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal server error occurred.")
-
 @app.get("/api/nodes/{node_id}/neighbors", summary="Get neighbors of a specific node")
 def get_node_neighbors(
     node_id: str,
     node_type: str, # node_type is now a required parameter
     request: Request,
-    months: int = 1,
     query_key: str | None = None,
     repo: repository.GraphRepository = Depends(get_repo)
 ):
     """
     Executes the 'neighbors' query from the 'default_graph' query set,
     selecting the appropriate query based on the node's type (label).
+    
+    NOTE: This only returns graph data. The static table is NOT updated on drill-down.
     """
     try:
         params = dict(request.query_params)
         params["node_id"] = node_id
         params["node_type"] = node_type
-        params["months"] = months
         if query_key:
             params["query_key"] = query_key
         query_set = (query_key or dict(request.query_params).get("query_key") or "default_graph")
-        return repo.execute_query(query_set, "neighbors", params)
+        
+        # Neighbor query only returns graph data, so we call execute_query
+        graph_result = repo.execute_query(query_set, "neighbors", params)
+        
+        # Return a payload compatible with the frontend
+        return {
+            "graph": graph_result["graph"],
+            "table": { # Return an empty table, as the static table doesn't change
+                "records": [],
+                "keys": []
+            }
+        }
     except Exception:
         logger.error(f"An error occurred while fetching neighbors for node {node_id}.", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal server error occurred.")

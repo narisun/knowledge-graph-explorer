@@ -21,8 +21,7 @@ class GraphRepository:
 
     def get_available_queries(self) -> list[dict]:
         """
-        Returns a list of all enabled queries with their metadata,
-        including the caption property and table display config.
+        Returns a list of all enabled queries with their metadata.
         """
         available_queries = []
         for name, details in self.query_sets.items():
@@ -33,7 +32,7 @@ class GraphRepository:
                     "description": details.get("description", ""),
                     "caption_property": details.get("caption_property", "name"),
                     "mapping": details.get("mapping", {}),
-                    "table_display": details.get("table_display", {})
+                    "table_query": details.get("table_query") # Simplified
                 })
         return available_queries
 
@@ -75,10 +74,34 @@ class GraphRepository:
             logger.error(f"An exception occurred fetching properties for edge {edge_id}", exc_info=True)
             return None
 
+    def execute_table_query(self, query: str, params: dict) -> dict:
+        """
+        Executes a pre-defined Cypher query (for table data) and
+        returns raw record data.
+        """
+        if not query:
+            logger.warning("No table query provided, returning empty table.")
+            return {"records": [], "keys": []}
+            
+        logger.info(f"Final Table Query:\n{query.strip()}")
+        logger.info(f"Parameters: {params}")
+        
+        with self.driver.session() as session:
+            result = session.run(query, params)
+            records = list(result)
+            keys = result.keys()
+            
+        logger.info(f"Table query returned {len(records)} records.")
+        
+        return {
+            "records": self._records_to_json_serializable(records),
+            "keys": keys
+        }
+
     def execute_query(self, query_set_name: str, query_type: str, params: dict) -> dict:
         """
-        Selects and executes a pre-defined Cypher query and returns both
-        graph-formatted and raw record data.
+        Selects and executes a pre-defined Cypher query (for graph data)
+        and returns both graph-formatted and raw record data.
         """
         query_set = self.query_sets.get(query_set_name, {})
         if not query_set.get("enabled", False):
@@ -93,10 +116,6 @@ class GraphRepository:
             query = neighbor_queries.get(node_type, neighbor_queries.get("_default"))
             if not query:
                 raise ValueError(f"No suitable neighbor query found for node type '{node_type}'.")
-        elif query_type == "chart":
-            query = query_set.get("chart")
-            if not query:
-                raise ValueError(f"Chart query not found in query set '{query_set_name}'.")
         else: # For 'primary' queries
             query = query_set.get(query_type)
             if not query:
@@ -105,7 +124,7 @@ class GraphRepository:
         params.setdefault("limit", 10)
         params.setdefault("text_search", None)
 
-        logger.info(f"Final Cypher Query:\n{query.strip()}")
+        logger.info(f"Final Graph Query:\n{query.strip()}")
         logger.info(f"Parameters: {params}")
         
         with self.driver.session() as session:
@@ -113,27 +132,12 @@ class GraphRepository:
             records = list(result)
             keys = result.keys()
             
-        logger.info(f"Query returned {len(records)} records.")
-
-        if query_type == "chart":
-            return self._format_chart_data(records)
+        logger.info(f"Graph query returned {len(records)} records.")
         
         return {
             "graph": self._nodes_to_cytoscape_format(records, mapping, caption_property),
-            "records": self._records_to_json_serializable(records),
-            "keys": keys
-        }
-
-    def _format_chart_data(self, records: list[Record]) -> dict:
-        labels = [str(record["date"]) for record in records]
-        total_amount = [record["total_amount"] for record in records]
-        transaction_volume = [record["transaction_volume"] for record in records]
-        return {
-            "labels": labels,
-            "datasets": {
-                "total_amount": total_amount,
-                "transaction_volume": transaction_volume
-            }
+            "records": self._records_to_json_serializable(records), # Kept for backward compatibility, though unused by frontend
+            "keys": keys # Kept for backward compatibility, though unused by frontend
         }
 
     def _records_to_json_serializable(self, records: list[Record]) -> list[dict]:
@@ -181,7 +185,7 @@ class GraphRepository:
                     node_id = value.element_id
                     if node_id not in nodes:
                         node_label = list(value.labels)[0] if value.labels else "Node"
-                        caption = value.get(caption_property, node_label)
+                        caption = value.get(caption_property, value.get("name", node_label))
                         node_data = {
                             "id": node_id,
                             "label": node_label,

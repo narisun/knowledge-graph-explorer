@@ -116,6 +116,8 @@ html, body {
     align-items: center;
     flex-wrap: wrap;
     gap: 0.25em;
+    /* Allow breadcrumbs to take up space */
+    flex-grow: 1;
 }
 
 .breadcrumb-value {
@@ -144,46 +146,6 @@ html, body {
     background-color: #fff;
 }
 
-.tabs {
-    display: flex;
-    background-color: #e9ecef;
-    border-top: 1px solid #ddd;
-    padding-left: 10px;
-}
-
-.tab-button {
-    padding: 8px 12px;
-    cursor: pointer;
-    border: 1px solid #ddd;
-    border-bottom: none;
-    background-color: #f8f9fa;
-    font-size: 0.9em;
-    color: #555;
-    margin-right: 5px;
-    border-radius: 4px 4px 0 0;
-}
-
-.tab-button.active {
-    background-color: #fff;
-    border-bottom: 1px solid #fff;
-    color: #0079c1;
-    font-weight: bold;
-}
-
-.tab-content {
-    display: none;
-    flex-grow: 1;
-}
-
-.tab-content.active {
-    display: flex;
-    flex-direction: column;
-}
-
-#chart-content {
-    padding: 10px;
-}
-
 .data-table-summary {
     display: flex;
     justify-content: space-between;
@@ -192,6 +154,7 @@ html, body {
     background-color: #e9ecef;
     border-bottom: 1px solid #ddd;
     flex-shrink: 0;
+    gap: 1em; /* Added gap */
 }
 
 .summary-totals {
@@ -199,10 +162,30 @@ html, body {
     gap: 1.5em;
     font-size: 0.9em;
     color: #333;
+    /* Don't grow, let breadcrumbs take space */
+    flex-shrink: 0;
 }
 .summary-item strong {
     color: #000;
 }
+
+/* NEW: Download Button Styles */
+.summary-controls {
+    flex-shrink: 0;
+    margin-left: auto; /* Push totals to the right */
+    padding: 0 1em;
+}
+
+#download-csv-button {
+    font-size: 1.5em;
+    color: #0079c1;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+#download-csv-button:hover {
+    color: #005a9e;
+}
+/* END NEW */
 
 .table-wrapper {
     overflow-y: auto;
@@ -214,6 +197,20 @@ html, body {
     border-collapse: collapse;
     font-size: 0.9em;
 }
+
+/* NEW: Table Header Styles */
+#data-table th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #ddd;
+    border-right: 1px solid #ddd;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+/* END NEW */
+
 
 #data-table td {
     padding: 8px 12px;
@@ -227,6 +224,11 @@ html, body {
 #data-table td:last-child {
     border-right: none;
 }
+/* NEW: Table Header Last Child */
+#data-table th:last-child {
+    border-right: none;
+}
+/* END NEW */
 
 #data-table tr:hover {
     background-color: #f9f9f9;

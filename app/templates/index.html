@@ -18,7 +18,6 @@
     <script src="https://unpkg.com/tippy.js@6"></script>
     <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
     <script src="https://unpkg.com/cytoscape-popper@2.0.0/cytoscape-popper.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <input type="hidden" id="current-query-key" value="">
@@ -59,21 +58,15 @@
             <div class="data-table-container">
                 <div id="data-table-summary" class="data-table-summary">
                     <div id="breadcrumb-trail" class="breadcrumb-container"></div>
+                    <div class="summary-controls">
+                        <i id="download-csv-button" class="fa-solid fa-file-csv" title="Download as CSV"></i>
+                    </div>
                     <div id="summary-totals" class="summary-totals"></div>
                 </div>
-                <div id="table-content" class="tab-content active">
-                    <div class="table-wrapper">
-                        <table id="data-table">
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div id="chart-content" class="tab-content">
-                    <canvas id="time-series-chart"></canvas>
-                </div>
-                <div class="tabs">
-                    <button class="tab-button active" data-tab="table">Table</button>
-                    <button class="tab-button" data-tab="chart">Chart</button>
+                <div class="table-wrapper">
+                    <table id="data-table">
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -118,7 +111,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> 
     </div> 
     
     <footer class="footer">&copy; 2025 TEST Bank N.A.</footer>
