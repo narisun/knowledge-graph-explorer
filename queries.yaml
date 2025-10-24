@@ -68,10 +68,10 @@ client_360_view:
     DepositProduct: >
       WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
+      MATCH (agg)-[:FOR_FLOW]->(f)
       WHERE elementId(dp) = $node_id
         AND elementId(c) = $Client_node_id
         AND agg.monthId IN validMonths
-      MATCH (agg)-[:FOR_FLOW]->(f)
       WITH dp, f, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
       SET f.totalAmount = totalAmount, f.txCount = txCount
       SET f.display_name = f.direction + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
@@ -83,11 +83,11 @@ client_360_view:
       WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       MATCH (agg)-[:FOR_FLOW]->(f)
+      MATCH (agg)-[:FOR_CHANNEL]->(ch)
       WHERE elementId(f) = $node_id
         AND elementId(dp) = $DepositProduct_node_id
         AND elementId(c) = $Client_node_id
         AND agg.monthId IN validMonths
-      MATCH (agg)-[:FOR_CHANNEL]->(ch)
       WITH f, ch, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
       SET ch.totalAmount = totalAmount, ch.txCount = txCount
       SET ch.display_name = ch.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
@@ -100,12 +100,12 @@ client_360_view:
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       MATCH (agg)-[:FOR_FLOW]->(f)
       MATCH (agg)-[:FOR_CHANNEL]->(ch)
+      MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
       WHERE elementId(ch) = $node_id
         AND elementId(f) = $Flow_node_id
         AND elementId(dp) = $DepositProduct_node_id
         AND elementId(c) = $Client_node_id
         AND agg.monthId IN validMonths
-      MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
       WITH ch, pp, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
       SET pp.totalAmount = totalAmount, pp.txCount = txCount
       SET pp.display_name = pp.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
@@ -140,6 +140,7 @@ client_360_view:
       MATCH (agg)-[:FOR_CHANNEL]->(ch)
       MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
       MATCH (agg)-[:FOR_FI]->(fi)
+      MATCH (agg)-[:FOR_PROSPECT]->(p)
       WHERE elementId(fi) = $node_id
         AND elementId(pp) = $PaymentProduct_node_id
         AND elementId(ch) = $Channel_node_id
@@ -147,7 +148,6 @@ client_360_view:
         AND elementId(dp) = $DepositProduct_node_id
         AND elementId(c) = $Client_node_id
         AND agg.monthId IN validMonths
-      MATCH (agg)-[:FOR_PROSPECT]->(p)
       WITH fi, p, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
       SET p.totalAmount = totalAmount, p.txCount = txCount
       SET p.display_name = p.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'

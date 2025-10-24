@@ -112,7 +112,7 @@ html, body {
 }
 
 .breadcrumb-container {
-    display: flex;
+    display: none; /* <-- HIDE BREADCRUMB */
     align-items: center;
     flex-wrap: wrap;
     gap: 0.25em;
@@ -148,7 +148,7 @@ html, body {
 
 .data-table-summary {
     display: flex;
-    justify-content: space-between;
+    /* justify-content: space-between; */
     align-items: center;
     padding: 0.5em 1em;
     background-color: #e9ecef;
@@ -164,6 +164,7 @@ html, body {
     color: #333;
     /* Don't grow, let breadcrumbs take space */
     flex-shrink: 0;
+    margin-left: auto; /* <-- PUSH TOTALS RIGHT */
 }
 .summary-item strong {
     color: #000;
@@ -172,8 +173,8 @@ html, body {
 /* NEW: Download Button Styles */
 .summary-controls {
     flex-shrink: 0;
-    margin-left: auto; /* Push totals to the right */
-    padding: 0 1em;
+    /* margin-left: auto; */ /* <-- REMOVED MARGIN */
+    padding: 0; /* <-- ADJUSTED PADDING */
 }
 
 #download-csv-button {
