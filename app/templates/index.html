@@ -18,6 +18,7 @@
     <script src="https://unpkg.com/tippy.js@6"></script>
     <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
     <script src="https://unpkg.com/cytoscape-popper@2.0.0/cytoscape-popper.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <input type="hidden" id="current-query-key" value="">
@@ -60,10 +61,19 @@
                     <div id="breadcrumb-trail" class="breadcrumb-container"></div>
                     <div id="summary-totals" class="summary-totals"></div>
                 </div>
-                <div class="table-wrapper">
-                    <table id="data-table">
-                        <tbody></tbody>
-                    </table>
+                <div id="table-content" class="tab-content active">
+                    <div class="table-wrapper">
+                        <table id="data-table">
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="chart-content" class="tab-content">
+                    <canvas id="time-series-chart"></canvas>
+                </div>
+                <div class="tabs">
+                    <button class="tab-button active" data-tab="table">Table</button>
+                    <button class="tab-button" data-tab="chart">Chart</button>
                 </div>
             </div>
         </div>

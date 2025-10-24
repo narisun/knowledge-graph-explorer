@@ -37,138 +37,131 @@ default_graph:
       RETURN n, r, m
       LIMIT toInteger($limit)
 
-prospect_view:
-  display_name: "Prospect View (by Degree)"
-  description: "Prospect size is based on the number of connections (degree)."
-  enabled: true
-  caption_property: "name"
-  mapping:
-    node_size: "degree"
-  primary: >
-    MATCH (n)
-    WITH n, COUNT { (n)--() } AS degree
-    SET n.degree = degree, n.community = labels(n)[0]
-    WITH n
-    MATCH (n)-[r]-(m)
-    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
-    RETURN n, r, m
-    ORDER BY n.degree DESC
-    LIMIT toInteger($limit)
-  neighbors: 
-    _default: >
-      MATCH (n)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Prospect: >
-      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Client: >
-      MATCH (n:Client)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
+# --- QUERY SET FOR CLIENT 360 DRILLDOWN ---
 
-prospect_view17:
-  display_name: "Prospect View 17 (by Degree)"
-  description: "Prospect size is based on the number of connections (degree)."
+client_360_view:
+  display_name: "Client 360 Drilldown"
+  description: "Aggregated drill-down from Client to Prospect."
   enabled: true
-  caption_property: "name"
+  caption_property: "display_name"
   mapping:
-    node_size: "degree"
-  primary: >
-    MATCH (n)
-    WITH n, COUNT { (n)--() } AS degree
-    SET n.degree = degree, n.community = labels(n)[0]
-    WITH n
-    MATCH (n)-[r]-(m)
-    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
-    RETURN n, r, m
-    ORDER BY n.degree DESC
-    LIMIT toInteger($limit)
-  neighbors: 
-    _default: >
-      MATCH (n)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Prospect: >
-      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Client: >
-      MATCH (n:Client)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
+    node_size: "totalAmount"
+    edge_weight: "txCount"
+  table_display:
+    _default: ["name", "totalAmount", "txCount"]
 
-prospect_view16:
-  display_name: "Prospect View 16 (by Degree)"
-  description: "Prospect size is based on the number of connections (degree)."
-  enabled: true
-  caption_property: "name"
-  mapping:
-    node_size: "degree"
   primary: >
-    MATCH (n)
-    WITH n, COUNT { (n)--() } AS degree
-    SET n.degree = degree, n.community = labels(n)[0]
-    WITH n
-    MATCH (n)-[r]-(m)
-    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
-    RETURN n, r, m
-    ORDER BY n.degree DESC
+    WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+    MATCH (n:Client)
+    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL OR n.clientId = $text_search)
+    WITH n, validMonths
+    OPTIONAL MATCH (n)<-[:FOR_CLIENT]-(agg:AggTx)
+    WHERE agg.monthId IN validMonths
+    WITH n, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
+    SET n.totalAmount = totalAmount, n.txCount = txCount
+    SET n.display_name = n.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
+    RETURN n
+    ORDER BY totalAmount DESC
     LIMIT toInteger($limit)
-  neighbors: 
-    _default: >
-      MATCH (n)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Prospect: >
-      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Client: >
-      MATCH (n:Client)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
 
-prospect_view15:
-  display_name: "Prospect View 15 (by Degree)"
-  description: "Prospect size is based on the number of connections (degree)."
-  enabled: true
-  caption_property: "name"
-  mapping:
-    node_size: "degree"
-  primary: >
-    MATCH (n)
-    WITH n, COUNT { (n)--() } AS degree
-    SET n.degree = degree, n.community = labels(n)[0]
-    WITH n
-    MATCH (n)-[r]-(m)
-    WHERE (n.name CONTAINS $text_search OR $text_search IS NULL)
-    RETURN n, r, m
-    ORDER BY n.degree DESC
-    LIMIT toInteger($limit)
   neighbors: 
     _default: >
-      MATCH (n)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Prospect: >
-      MATCH (n:Prospect)-[r:MAKES_PAYMENT]-(m:Business)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
-    Client: >
-      MATCH (n:Client)-[r]-(m)
-      WHERE elementId(n) = $node_id
-      RETURN n, r, m
-      LIMIT toInteger($limit)
+      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
+      WHERE elementId(c) = $node_id AND agg.monthId IN validMonths
+      WITH c, dp, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
+      SET dp.totalAmount = totalAmount, dp.txCount = txCount
+      SET dp.display_name = dp.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
+      WITH c, dp, totalAmount, txCount
+      CALL apoc.create.vRelationship(c, 'AGG_TO', {totalAmount: totalAmount, txCount: txCount}, dp) YIELD rel
+      RETURN c, rel, dp
+
+    DepositProduct: >
+      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
+      WHERE elementId(dp) = $node_id 
+        AND elementId(c) = $Client_node_id 
+        AND agg.monthId IN validMonths
+      MATCH (agg)-[:FOR_FLOW]->(f)
+      WITH dp, f, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
+      SET f.totalAmount = totalAmount, f.txCount = txCount
+      SET f.display_name = f.direction + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
+      WITH dp, f, totalAmount, txCount
+      CALL apoc.create.vRelationship(dp, 'AGG_TO', {totalAmount: totalAmount, txCount: txCount}, f) YIELD rel
+      RETURN dp, rel, f
+
+    Flow: >
+      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
+      MATCH (agg)-[:FOR_FLOW]->(f)
+      WHERE elementId(f) = $node_id 
+        AND elementId(dp) = $DepositProduct_node_id
+        AND elementId(c) = $Client_node_id
+        AND agg.monthId IN validMonths
+      MATCH (agg)-[:FOR_CHANNEL]->(ch)
+      WITH f, ch, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
+      SET ch.totalAmount = totalAmount, ch.txCount = txCount
+      SET ch.display_name = ch.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
+      WITH f, ch, totalAmount, txCount
+      CALL apoc.create.vRelationship(f, 'AGG_TO', {totalAmount: totalAmount, txCount: txCount}, ch) YIELD rel
+      RETURN f, rel, ch
+
+    Channel: >
+      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
+      MATCH (agg)-[:FOR_FLOW]->(f)
+      MATCH (agg)-[:FOR_CHANNEL]->(ch)
+      WHERE elementId(ch) = $node_id 
+        AND elementId(f) = $Flow_node_id
+        AND elementId(dp) = $DepositProduct_node_id
+        AND elementId(c) = $Client_node_id
+        AND agg.monthId IN validMonths
+      MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
+      WITH ch, pp, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
+      SET pp.totalAmount = totalAmount, pp.txCount = txCount
+      SET pp.display_name = pp.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
+      WITH ch, pp, totalAmount, txCount
+      CALL apoc.create.vRelationship(ch, 'AGG_TO', {totalAmount: totalAmount, txCount: txCount}, pp) YIELD rel
+      RETURN ch, rel, pp
+
+    PaymentProduct: >
+      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
+      MATCH (agg)-[:FOR_FLOW]->(f)
+      MATCH (agg)-[:FOR_CHANNEL]->(ch)
+      MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
+      WHERE elementId(pp) = $node_id 
+        AND elementId(ch) = $Channel_node_id
+        AND elementId(f) = $Flow_node_id
+        AND elementId(dp) = $DepositProduct_node_id
+        AND elementId(c) = $Client_node_id
+        AND agg.monthId IN validMonths
+      MATCH (agg)-[:FOR_FI]->(fi)
+      WITH pp, fi, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
+      SET fi.totalAmount = totalAmount, fi.txCount = txCount
+      SET fi.display_name = fi.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
+      WITH pp, fi, totalAmount, txCount
+      CALL apoc.create.vRelationship(pp, 'AGG_TO', {totalAmount: totalAmount, txCount: txCount}, fi) YIELD rel
+      RETURN pp, rel, fi
+
+    FinancialInstitution: >
+      WITH [i IN range(0, $months - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
+      MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
+      MATCH (agg)-[:FOR_FLOW]->(f)
+      MATCH (agg)-[:FOR_CHANNEL]->(ch)
+      MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
+      MATCH (agg)-[:FOR_FI]->(fi)
+      WHERE elementId(fi) = $node_id 
+        AND elementId(pp) = $PaymentProduct_node_id
+        AND elementId(ch) = $Channel_node_id
+        AND elementId(f) = $Flow_node_id
+        AND elementId(dp) = $DepositProduct_node_id
+        AND elementId(c) = $Client_node_id
+        AND agg.monthId IN validMonths
+      MATCH (agg)-[:FOR_PROSPECT]->(p)
+      WITH fi, p, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
+      SET p.totalAmount = totalAmount, p.txCount = txCount
+      SET p.display_name = p.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
+      WITH fi, p, totalAmount, txCount
+      CALL apoc.create.vRelationship(fi, 'AGG_TO', {totalAmount: totalAmount, txCount: txCount}, p) YIELD rel
+      RETURN fi, rel, p

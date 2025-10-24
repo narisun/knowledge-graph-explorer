@@ -93,6 +93,10 @@ class GraphRepository:
             query = neighbor_queries.get(node_type, neighbor_queries.get("_default"))
             if not query:
                 raise ValueError(f"No suitable neighbor query found for node type '{node_type}'.")
+        elif query_type == "chart":
+            query = query_set.get("chart")
+            if not query:
+                raise ValueError(f"Chart query not found in query set '{query_set_name}'.")
         else: # For 'primary' queries
             query = query_set.get(query_type)
             if not query:
@@ -110,11 +114,26 @@ class GraphRepository:
             keys = result.keys()
             
         logger.info(f"Query returned {len(records)} records.")
+
+        if query_type == "chart":
+            return self._format_chart_data(records)
         
         return {
             "graph": self._nodes_to_cytoscape_format(records, mapping, caption_property),
             "records": self._records_to_json_serializable(records),
             "keys": keys
+        }
+
+    def _format_chart_data(self, records: list[Record]) -> dict:
+        labels = [str(record["date"]) for record in records]
+        total_amount = [record["total_amount"] for record in records]
+        transaction_volume = [record["transaction_volume"] for record in records]
+        return {
+            "labels": labels,
+            "datasets": {
+                "total_amount": total_amount,
+                "transaction_volume": transaction_volume
+            }
         }
 
     def _records_to_json_serializable(self, records: list[Record]) -> list[dict]:

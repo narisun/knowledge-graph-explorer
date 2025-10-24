@@ -6,15 +6,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const INFO_API_URL = '/api/connection-info';
     const QUERIES_API_URL = '/api/queries';
-function setActiveQueryKey(key){ const i=document.getElementById('current-query-key'); if(i){ i.value = key || ''; } }
+    function setActiveQueryKey(key){ const i=document.getElementById('current-query-key'); if(i){ i.value = key || ''; } }
 
     const SEARCH_API_URL_TEMPLATE = '/api/search/{query_name}';
+    const CHART_API_URL_TEMPLATE = '/api/search/{query_name}/chart';
     const NEIGHBORS_API_URL_TEMPLATE = '/api/nodes/{node_id}/neighbors';
     const NODE_PROPERTIES_API_URL_TEMPLATE = '/api/nodes/{node_id}/properties';
     const EDGE_PROPERTIES_API_URL_TEMPLATE = '/api/edges/{edge_id}/properties';
 
     let currentQuery = {};
     let clickedNodesHistory = {};
+    let timeSeriesChart;
 
     const cyContainer = document.getElementById('cy');
     const loader = document.getElementById('loader');
@@ -34,6 +36,27 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const summaryTotals = document.getElementById('summary-totals');
     const timescaleSlider = document.getElementById('timescale-slider');
     const timescaleLabel = document.getElementById('timescale-label');
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const tabName = tab.dataset.tab;
+            tabContents.forEach(content => {
+                if (content.id === `${tabName}-content`) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+
+            if (tabName === 'chart') {
+                loadChartData(currentQuery);
+            }
+        });
+    });
 
     const colorPalette = ['#5B8FF9', '#61DDAA', '#65789B', '#F6BD16', '#7262FD', '#78D3F8', '#9661BC', '#F6903D', '#008685', '#F08BB4'];
     const labelColorMap = {};
@@ -154,6 +177,46 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                 }
             });
             tbody.appendChild(row);
+        });
+    }
+
+    async function loadChartData(query) {
+        const months = parseInt(timescaleSlider.value);
+        const url = CHART_API_URL_TEMPLATE.replace('{query_name}', query.name) + `?months=${months}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            renderChart(data);
+        } catch (error) {
+            console.error("Failed to fetch chart data:", error);
+        }
+    }
+
+    function renderChart(data) {
+        const ctx = document.getElementById('time-series-chart').getContext('2d');
+        if (timeSeriesChart) {
+            timeSeriesChart.destroy();
+        }
+        timeSeriesChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: 'Total Amount',
+                        data: data.datasets.total_amount,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Transaction Volume',
+                        data: data.datasets.transaction_volume,
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1
+                    }
+                ]
+            }
         });
     }
 

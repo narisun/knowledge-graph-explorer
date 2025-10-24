@@ -78,11 +78,29 @@ def search_graph_data(
         logger.error("An error occurred in the search graph endpoint.", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
+@app.get("/api/search/{query_set_name}/chart", summary="Get chart data for a named query set")
+def get_chart_data(
+    query_set_name: str,
+    months: int = 1,
+    repo: repository.GraphRepository = Depends(get_repo)
+):
+    try:
+        params = {"months": months}
+        return repo.execute_query(query_set_name, "chart", params)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except PermissionError as pe:
+        raise HTTPException(status_code=403, detail=str(pe))
+    except Exception:
+        logger.error("An error occurred in the chart data endpoint.", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
 @app.get("/api/nodes/{node_id}/neighbors", summary="Get neighbors of a specific node")
 def get_node_neighbors(
     node_id: str,
     node_type: str, # node_type is now a required parameter
     request: Request,
+    months: int = 1,
     query_key: str | None = None,
     repo: repository.GraphRepository = Depends(get_repo)
 ):
@@ -94,6 +112,7 @@ def get_node_neighbors(
         params = dict(request.query_params)
         params["node_id"] = node_id
         params["node_type"] = node_type
+        params["months"] = months
         if query_key:
             params["query_key"] = query_key
         query_set = (query_key or dict(request.query_params).get("query_key") or "default_graph")
