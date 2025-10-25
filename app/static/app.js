@@ -34,7 +34,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const summaryTotals = document.getElementById('summary-totals');
     const timescaleSlider = document.getElementById('timescale-slider');
     const timescaleLabel = document.getElementById('timescale-label');
-    const downloadCsvButton = document.getElementById('download-csv-button'); // <-- ADDED
+    const downloadCsvButton = document.getElementById('download-csv-button'); 
 
     const colorPalette = ['#5B8FF9', '#61DDAA', '#65789B', '#F6BD16', '#7262FD', '#78D3F8', '#9661BC', '#F6903D', '#008685', '#F08BB4'];
     const labelColorMap = {};
@@ -457,7 +457,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
 
     searchButton.addEventListener('click', () => { if (currentQuery.name) loadGraph(currentQuery); });
     textSearchInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') searchButton.click(); });
-    downloadCsvButton.addEventListener('click', downloadTableAsCSV); // <-- ADDED
+    downloadCsvButton.addEventListener('click', downloadTableAsCSV);
 
     async function populateNav() {
         const response = await fetch(QUERIES_API_URL);
@@ -481,7 +481,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             queryList.appendChild(listItem);
         });
         
-        // Auto-load the first query (which is now client_30_view)
+        // Auto-load the first query
         await loadGraph(queries[0]);
     }
 
@@ -559,40 +559,80 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         }
     });
 
+    // --- UPDATED HANDLER with TOGGLE LOGIC ---
     cy.on('dbltap', 'node', async function(evt) {
         clearTimeout(tapTimeout);
         const node = evt.target;
-        const nodeId = node.id(); // This is the synthetic ID (e.g., "rel_node")
-        const nodeType = node.data('label');
-        const nodeName = node.data(currentQuery.caption_property) || node.data('name');
-        
-        // Get the *real* Neo4j ID for history params
-        // Fallback to node.id() for root nodes which don't have original_element_id
-        const originalElementId = node.data('original_element_id') || node.id(); 
+        const nodeType = node.data('label'); // Get nodeType early
 
-        // Store both the synthetic ID (for breadcrumb) and real ID (for API history)
-        clickedNodesHistory[nodeType] = { id: nodeId, name: nodeName, real_id: originalElementId };
-        updateBreadcrumbTrail();
-    
-        // Build history params using the REAL IDs
-        const historyParams = Object.entries(clickedNodesHistory)
-            .map(([type, nodeInfo]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(nodeInfo.real_id)}`)
-            .join('&');
-    
-        const months = parseInt(timescaleSlider.value);
+        // 1. Check if the node is already expanded.
+        const isExpanded = node.data('_expanded');
+
+        if (isExpanded) {
+            // --- COLLAPSE LOGIC ---
+            
+            // 1. Remove descendants from graph
+            //    node.successors() gets all outgoing edges and their target nodes, recursively.
+            const descendants = node.successors();
+            cy.remove(descendants);
+            
+            // 2. Mark this node as collapsed
+            node.data('_expanded', false);
+
+            // 3. Prune the breadcrumb history
+            //    This finds the node's type in the history and removes it and all entries after it.
+            const existingNodeTypes = Object.keys(clickedNodesHistory);
+            const clickedIndex = existingNodeTypes.indexOf(nodeType);
         
-        // Call the API using the SYNTHETIC ID (nodeId) in the URL
-        let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 
-            + `?limit=10&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}&months=${months}`;
+            if (clickedIndex > -1) {
+                const newHistory = {};
+                // We keep everything *up to* (but not including) the clicked node's type
+                for (let i = 0; i < clickedIndex; i++) { 
+                    const type = existingNodeTypes[i];
+                    newHistory[type] = clickedNodesHistory[type];
+                }
+                clickedNodesHistory = newHistory;
+                updateBreadcrumbTrail(); // Update the UI
+            }
+
+        } else {
+            // --- EXPAND LOGIC (Original logic) ---
+            
+            const nodeId = node.id(); // This is the synthetic ID (e.g., "rel_node")
+            const nodeName = node.data(currentQuery.caption_property) || node.data('name');
+            const originalElementId = node.data('original_element_id') || node.id(); 
+
+            // Add this node to the history
+            clickedNodesHistory[nodeType] = { id: nodeId, name: nodeName, real_id: originalElementId };
+            updateBreadcrumbTrail();
         
-        if (historyParams) {
-            neighborsUrl += `&${historyParams}`;
+            // Build history params using the REAL IDs
+            const historyParams = Object.entries(clickedNodesHistory)
+                .map(([type, nodeInfo]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(nodeInfo.real_id)}`)
+                .join('&');
+        
+            const months = parseInt(timescaleSlider.value);
+            
+            // Call the API using the SYNTHETIC ID (nodeId) in the URL
+            let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 
+                + `?limit=10&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}&months=${months}`;
+            
+            if (historyParams) {
+                neighborsUrl += `&${historyParams}`;
+            }
+            
+            // Fetch and add the new elements
+            const addedElements = await fetchDataAndRender(neighborsUrl, true);
+            
+            // Only mark as expanded if we actually added something
+            if (addedElements.length > 0) {
+                node.data('_expanded', true); // Mark as expanded
+            }
+
+            calculateRelativeSizes();
+            reRunLayout(); 
+            handleZoom();
         }
-        
-        await fetchDataAndRender(neighborsUrl, true); // isDrillDown = true
-        calculateRelativeSizes();
-        reRunLayout(); 
-        handleZoom();
     });
 
     async function fetchElementProperties(element) {
