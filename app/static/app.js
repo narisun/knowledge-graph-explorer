@@ -261,13 +261,14 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             nodeDimensionsIncludeLabels: false,
         },
         breadthfirst: {
-            name: 'breadthfirst',
-            fit: false,
+            name: 'dagre',
+            fit: true,
+            direction: 'rightward',  
             directed: true,
-            padding: 30,
+            padding: 10,
             circle: false,
-            grid: false,
-            spacingFactor: 1.5,
+            grid: true,
+            spacingFactor: 1,
             avoidOverlap: true,
             nodeDimensionsIncludeLabels: false,
             maximal: false,
@@ -300,7 +301,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                 selector: 'edge', 
                 style: { 
                     'width': (ele) => ele.data('weight') ? Math.min(Math.max(ele.data('weight'), 1), 10) : 1,
-                    'target-arrow-shape': 'triangle', 'curve-style': 'unbundled-bezier',
+                    'target-arrow-shape': 'triangle', 'curve-style': 'straight',
                     'line-color': '#ccc', 'target-arrow-color': '#ccc', 'label': 'data(label)',
                     'text-opacity': 0, 'font-size': '10px', 'color': '#555'
                 } 
