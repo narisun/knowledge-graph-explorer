@@ -1,7 +1,7 @@
 # --- QUERY SET FOR CLIENT 360 DRILLDOWN ---
 
 client_360_view:
-  display_name: "Client 360 Drilldown"
+  display_name: "Client 360 View"
   description: "Aggregated drill-down from Client to Prospect."
   enabled: true
   caption_property: "display_name"
