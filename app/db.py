@@ -1,4 +1,4 @@
-# backend/app/db.py
+# app/db.py
 import logging
 from neo4j import GraphDatabase, Driver
 from .config import settings

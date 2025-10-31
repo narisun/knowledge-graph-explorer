@@ -28,13 +28,16 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event():
+    """Initializes the database driver on application startup."""
     db.get_driver()
 
 @app.on_event("shutdown")
 def shutdown_event():
+    """Closes the database driver on application shutdown."""
     db.close_driver()
 
 def get_repo():
+    """Dependency injection function to get a GraphRepository instance."""
     return repository.GraphRepository(db.get_driver())
 
 @app.get("/", include_in_schema=False)
@@ -46,6 +49,7 @@ def serve_frontend(request: Request):
 
 @app.get("/api/connection-info", summary="Get current connection info")
 def get_connection_info():
+    """Returns basic information about the current Neo4j connection."""
     return {
         "user_name": settings.neo4j_user,
         "database_name": settings.neo4j_database
@@ -53,6 +57,7 @@ def get_connection_info():
 
 @app.get("/api/queries", summary="Get the list of available, enabled queries")
 def get_available_queries(repo: repository.GraphRepository = Depends(get_repo)):
+    """Fetches the list of user-facing queries from the repository."""
     try:
         return repo.get_available_queries()
     except Exception:
@@ -66,6 +71,10 @@ def search_graph_data(
     months: int = 1,
     repo: repository.GraphRepository = Depends(get_repo)
 ):
+    """
+    Runs a 'primary' search, fetching both graph data for visualization
+    and table data for the bottom panel.
+    """
     try:
         params = dict(request.query_params)
         params["months"] = months
@@ -100,8 +109,8 @@ def get_node_neighbors(
     repo: repository.GraphRepository = Depends(get_repo)
 ):
     """
-    Executes the 'neighbors' query from the 'default_graph' query set,
-    selecting the appropriate query based on the node's type (label).
+    Executes the 'neighbors' query from the specified query_key,
+    selecting the appropriate sub-query based on the node's type (label).
     
     NOTE: This only returns graph data. The static table is NOT updated on drill-down.
     """
@@ -133,12 +142,14 @@ def get_node_properties(
     node_id: str,
     repo: repository.GraphRepository = Depends(get_repo)
 ):
+    """Fetches the properties for a single node, given its element ID."""
     try:
         properties = repo.get_node_properties(node_id)
         if properties is None:
             raise HTTPException(status_code=404, detail="Node not found or has no properties.")
         return properties
     except Exception as e:
+        # Avoid re-raising HTTPException if we just raised it (e.g., 404)
         if not isinstance(e, HTTPException):
             logger.error(f"An error occurred while fetching properties for node {node_id}.", exc_info=True)
             raise HTTPException(status_code=500, detail="An internal server error occurred.")
@@ -149,12 +160,14 @@ def get_edge_properties(
     edge_id: str,
     repo: repository.GraphRepository = Depends(get_repo)
 ):
+    """Fetches the properties for a single edge, given its element ID."""
     try:
         properties = repo.get_edge_properties(edge_id)
         if properties is None:
             raise HTTPException(status_code=404, detail="Edge not found or has no properties.")
         return properties
     except Exception as e:
+        # Avoid re-raising HTTPException if we just raised it (e.g., 404)
         if not isinstance(e, HTTPException):
             logger.error(f"An error occurred while fetching properties for edge {edge_id}.", exc_info=True)
             raise HTTPException(status_code=500, detail="An internal server error occurred.")

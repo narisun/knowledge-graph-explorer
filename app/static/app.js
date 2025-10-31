@@ -16,6 +16,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     let currentQuery = {};
     let clickedNodesHistory = {};
 
+    // --- Element References ---
     const cyContainer = document.getElementById('cy');
     const loader = document.getElementById('loader');
     const propertiesPanel = document.getElementById('properties-panel');
@@ -28,23 +29,31 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const textSearchInput = document.getElementById('text-search-input');
     const limitInput = document.getElementById('limit-input');
     const searchButton = document.getElementById('search-button');
-    const graphLayoutSelect = document.getElementById('graph-layout-select');
     const legendContent = document.getElementById('legend-content');
     const dataTable = document.getElementById('data-table');
     const summaryTotals = document.getElementById('summary-totals');
     const timescaleSlider = document.getElementById('timescale-slider');
     const timescaleLabel = document.getElementById('timescale-label');
     const downloadCsvButton = document.getElementById('download-csv-button'); 
+    
+    // --- Fullscreen Elements ---
+    const fullscreenButton = document.getElementById('fullscreen-button');
+    const exitFullscreenButton = document.getElementById('exit-fullscreen-button');
+    const header = document.querySelector('.header');
+    const footer = document.querySelector('.footer');
+    const mainContent = document.querySelector('.main-content');
+    const leftNav = document.querySelector('.left-nav');
+    const rightPanel = document.querySelector('.right-panel');
+    const centerHeader = document.querySelector('.center-header');
+    const centerSection = document.querySelector('.center-section');
+    const dataTableContainer = document.querySelector('.data-table-container');
 
-    const colorPalette = ['#5B8FF9', '#61DDAA', '#65789B', '#F6BD16', '#7262FD', '#78D3F8', '#9661BC', '#F6903D', '#008685', '#F08BB4'];
-    const labelColorMap = {};
-    let colorIndex = 0;
+    // This will be populated by the query set's color map
+    let labelColorMap = {}; 
+    const defaultColor = '#999'; // Fallback color
+
     function getColorForLabel(label) {
-        if (!labelColorMap[label]) {
-            labelColorMap[label] = colorPalette[colorIndex % colorPalette.length];
-            colorIndex++;
-        }
-        return labelColorMap[label];
+        return labelColorMap[label] || defaultColor;
     }
 
     function getReadableTextColor(hex) {
@@ -81,7 +90,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         });
     }
 
-    // --- SIMPLIFIED FUNCTION ---
+    // --- Data Table Population ---
     function populateDataTable(records, keys) {
         // Clear old header and body
         const oldThead = dataTable.querySelector('thead');
@@ -144,9 +153,8 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             newTbody.appendChild(row);
         });
     }
-    // --- END SIMPLIFIED FUNCTION ---
 
-    // --- NEW FUNCTION: Download CSV ---
+    // --- Download CSV Function ---
     function downloadTableAsCSV() {
         const table = document.getElementById('data-table');
         let csv = [];
@@ -179,9 +187,8 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         
         document.body.removeChild(link);
     }
-    // --- END NEW FUNCTION ---
-
-
+    
+    // --- Layout Definitions ---
     const layouts = {
         cola: {
             name: 'cola',
@@ -283,6 +290,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         }
     };
     
+    // --- Cytoscape Initialization ---
     const cy = cytoscape({
         container: cyContainer,
         style: [
@@ -293,8 +301,27 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                     'label': (ele) => ele.data(currentQuery.caption_property) || ele.data('name'),
                     'width': (ele) => ele.data('relative_size') ? 8 + ele.data('relative_size') * 20 : 13,
                     'height': (ele) => ele.data('relative_size') ? 8 + ele.data('relative_size') * 20 : 13,
-                    'text-opacity': 0, 'color': '#333', 'font-size': '12px', 'border-width': 0
+                    'text-opacity': 0, 'color': '#333', 'font-size': '12px', 
+                    'border-width': 0 // Default: no border
                 } 
+            },
+            // --- NEW STYLE for Start Node (Client) ---
+            {
+                selector: 'node[label = "Client"]',
+                style: {
+                    'border-width': 4,
+                    'border-color': '#ffffff' // Thick white border
+                }
+            },
+            // --- NEW STYLE for End Node (Prospect) ---
+            {
+                selector: 'node[label = "Prospect"]',
+                style: {
+                    'background-color': '#ffffff', // White fill
+                    'border-width': 4,
+                    // Use the node's assigned color for the border
+                    'border-color': (ele) => getColorForLabel(ele.data('label')) 
+                }
             },
             { selector: 'node.labels-visible', style: { 'text-opacity': 1 } },
             { 
@@ -302,7 +329,8 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
                 style: { 
                     'width': (ele) => ele.data('weight') ? Math.min(Math.max(ele.data('weight'), 1), 10) : 1,
                     'target-arrow-shape': 'triangle', 'curve-style': 'straight',
-                    'line-color': '#ccc', 'target-arrow-color': '#ccc', 'label': 'data(label)',
+                    'line-color': '#ccc', 'target-arrow-color': '#ccc',
+                    'label': '', // --- REMOVED EDGE LABEL ---
                     'text-opacity': 0, 'font-size': '10px', 'color': '#555'
                 } 
             },
@@ -326,7 +354,8 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     zoomSlider.addEventListener('input', (e) => cy.zoom(parseFloat(e.target.value)));
     
     function reRunLayout() {
-        const layoutName = graphLayoutSelect.value;
+        // Find the checked radio button's value
+        const layoutName = document.querySelector('input[name="graph-layout"]:checked').value;
         const edgeLength = parseInt(edgeLengthSlider.value);
         const nodeSpacing = parseInt(nodeSpacingSlider.value);
 
@@ -339,7 +368,12 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         });
         cy.layout(options).run();
     }
-    graphLayoutSelect.addEventListener('change', reRunLayout);
+    
+    // Add event listeners to the radio buttons
+    document.querySelectorAll('input[name="graph-layout"]').forEach(radio => {
+        radio.addEventListener('change', reRunLayout);
+    });
+    
     edgeLengthSlider.addEventListener('change', reRunLayout);
     nodeSpacingSlider.addEventListener('change', reRunLayout);
     
@@ -425,6 +459,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
 
     async function loadGraph(query) {
         currentQuery = query;
+        labelColorMap = query.colors || {}; // Load the static color map
         clickedNodesHistory = {};
         updateBreadcrumbTrail();
         try { setActiveQueryKey(query.name); } catch(e) {}
@@ -540,7 +575,8 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     
         let html = '<ul>';
         for (const [key, value] of Object.entries(props)) {
-            if (key === 'display_name' || key === 'original_element_id') continue; // Don't show redundant info
+            // Don't show redundant info
+            if (key === 'display_name' || key === 'original_element_id') continue; 
             html += `<li><strong>${key}:</strong> ${formatPropertyValue(key, value)}</li>`;
         }
         html += '</ul>';
@@ -554,15 +590,16 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         element.addClass('selected');
         if(element.isNode()) {
             clearTimeout(tapTimeout);
+            // Use a short timeout to distinguish single-tap from double-tap
             tapTimeout = setTimeout(() => showElementProperties(element), 200);
         } else {
             showElementProperties(element);
         }
     });
 
-    // --- UPDATED HANDLER with TOGGLE LOGIC ---
+    // --- Node Double-Tap Handler (Expand/Collapse) ---
     cy.on('dbltap', 'node', async function(evt) {
-        clearTimeout(tapTimeout);
+        clearTimeout(tapTimeout); // Cancel the single-tap action
         const node = evt.target;
         const nodeType = node.data('label'); // Get nodeType early
 
@@ -703,6 +740,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         }
     });
 
+    // --- Drag Behavior ---
     let draggedParent = null;
     let dragOffsets = {};
 
@@ -743,6 +781,7 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         }
     });
 
+    // --- Dynamic Label Visibility ---
     const labelThreshold = 1.2;
     const baseNodeFontSize = 12;
     const baseEdgeFontSize = 10;
@@ -765,6 +804,62 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         const info = await response.json();
         document.getElementById('db-info-span').innerHTML = ` <span>User: ${info.user_name}</span> | <span>Database: ${info.database_name}</span> `;
     }
+
+    // --- Fullscreen Toggle Logic (Simplified + setTimeout) ---
+    fullscreenButton.addEventListener('click', () => {
+        // Hide all panels
+        header.style.display = 'none';
+        footer.style.display = 'none';
+        leftNav.style.display = 'none';
+        rightPanel.style.display = 'none';
+        centerHeader.style.display = 'none';
+        dataTableContainer.style.display = 'none';
+        
+        // Expand main content
+        mainContent.style.top = '0';
+        mainContent.style.bottom = '0';
+        centerSection.style.height = '100%';
+        //centerSection.style.width = '100%'; // <-- Explicitly set width
+        cyContainer.style.height = '100%';
+        
+        // Toggle buttons
+        fullscreenButton.style.display = 'none';
+        exitFullscreenButton.style.display = 'block';
+        
+        // Queue the resize to happen *after* the browser repaints the layout
+        setTimeout(() => {
+            cy.resize();
+            cy.fit(); // Fit the graph to the new, larger view
+            handleZoom();
+        }, 0);
+    });
+
+    exitFullscreenButton.addEventListener('click', () => {
+        // Show all panels
+        header.style.display = 'flex';
+        footer.style.display = 'flex';
+        leftNav.style.display = 'block';
+        rightPanel.style.display = 'flex';
+        centerHeader.style.display = 'flex';
+        dataTableContainer.style.display = 'flex';
+        
+        // Restore main content
+        mainContent.style.top = '50px';
+        mainContent.style.bottom = '25px';
+        centerSection.style.height = ''; // Let CSS take over
+        centerSection.style.width = '1px'; // <-- YOUR FIX (using 'auto' to reset)
+        cyContainer.style.height = '65%'; // Restore original height
+        
+        // Toggle buttons
+        fullscreenButton.style.display = 'block';
+        exitFullscreenButton.style.display = 'none';
+        
+        // Queue the resize to happen *after* the browser repaints the layout
+        setTimeout(() => {
+            cy.resize();
+            //handleZoom(); // Restore original zoom/pan
+        }, 0);
+    });
 
     async function startApp() {
         showLoader();

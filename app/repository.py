@@ -32,7 +32,8 @@ class GraphRepository:
                     "description": details.get("description", ""),
                     "caption_property": details.get("caption_property", "name"),
                     "mapping": details.get("mapping", {}),
-                    "table_query": details.get("table_query") # Simplified
+                    "colors": details.get("colors", {}), # Pass the color map
+                    "table_query": details.get("table_query")
                 })
         return available_queries
 
@@ -117,15 +118,18 @@ class GraphRepository:
         mapping = query_set.get("mapping", {})
         caption_property = query_set.get("caption_property", "name")
         
-        # --- THIS IS THE FIX ---
-        clicked_synthetic_id = None # Store the full ID passed from the frontend
+        # This will store the full synthetic ID (e.g., "edgeId_nodeId") passed from the frontend
+        clicked_synthetic_id = None 
 
         if query_type == "neighbors":
             if "node_id" in params:
-                clicked_synthetic_id = params["node_id"] # This is the ID of the clicked node in Cytoscape
-                real_node_id = clicked_synthetic_id.split('_')[-1] # Get real ID for Cypher
+                # This is the ID of the clicked node in Cytoscape
+                clicked_synthetic_id = params["node_id"] 
+                # Get real ID for the Cypher query
+                real_node_id = clicked_synthetic_id.split('_')[-1] 
                 
-                params["node_id"] = real_node_id # Overwrite params for the Cypher query
+                # Overwrite params for the Cypher query
+                params["node_id"] = real_node_id 
                 
             node_type = params.get("node_type")
             neighbor_queries = query_set.get("neighbors", {})
@@ -233,7 +237,6 @@ class GraphRepository:
             elif record_rel:
                 edge_id = record_rel.element_id
                 
-                # --- THIS IS THE FIX ---
                 # The parent_id *must* be the ID of the node that was clicked in Cytoscape
                 parent_id = clicked_synthetic_id
 
@@ -242,13 +245,14 @@ class GraphRepository:
                 
                 if child_node:
                     # Create a NEW, UNIQUE ID for the child node to force a "tree" structure
+                    # This prevents collisions if the same child node is reached via different paths
                     unique_child_id = f"{edge_id}_{child_node.element_id}"
                     
                     if unique_child_id not in nodes:
                         node_label = list(child_node.labels)[0] if child_node.labels else "Node"
                         caption = child_node.get(caption_property, child_node.get("name", node_label))
                         node_data = {
-                            "id": unique_child_id, # <-- THE SYNTHETIC ID
+                            "id": unique_child_id, # <-- The synthetic ID
                             "label": node_label,
                             "name": caption,
                             "original_element_id": child_node.element_id # Store real ID
@@ -262,8 +266,8 @@ class GraphRepository:
                     if edge_id not in edges:
                         edge_data = { 
                             "id": edge_id, 
-                            "source": parent_id, # <-- Parent's SYNTHETIC ID
-                            "target": unique_child_id, # <-- Child's SYNTHETIC ID
+                            "source": parent_id, # <-- Parent's synthetic ID
+                            "target": unique_child_id, # <-- Child's synthetic ID
                             "label": type(record_rel).__name__ 
                         }
                         if edge_weight_prop and record_rel.get(edge_weight_prop) is not None:

@@ -10,6 +10,15 @@ client_360_view:
   mapping:
     node_size: "totalAmount"
     edge_weight: "txCount"
+  # Define static colors for each node type
+  colors:
+    Client: "#0079c1"  # Blue (Start)
+    DepositProduct: "#f6bd16" # Yellow
+    Flow: "#61ddaa" # Green
+    Channel: "#7262fd" # Purple
+    PaymentProduct: "#f08bb4" # Pink
+    FinancialInstitution: "#78d3f8" # Light Blue
+    Prospect: "#f6903d" # Orange (End)
   table_display:
     _default: ["name", "totalAmount", "txCount"]
 

@@ -1,4 +1,4 @@
-/* backend/app/static/styles.css */
+/* app/static/styles.css */
 html, body {
     margin: 0;
     padding: 0;
@@ -47,6 +47,7 @@ html, body {
     bottom: 25px;
     width: 100%;
     display: flex;
+    /* REMOVED the transition */
 }
 
 .left-nav {
@@ -112,7 +113,7 @@ html, body {
 }
 
 .breadcrumb-container {
-    display: none; /* <-- HIDE BREADCRUMB */
+    display: none; /* <-- REVIEW: This is hidden, is this intended? */
     align-items: center;
     flex-wrap: wrap;
     gap: 0.25em;
@@ -138,6 +139,32 @@ html, body {
     height: 65%;
 }
 
+/* Fullscreen Toggle Button Styles */
+.fullscreen-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 998; /* Below loader, above graph */
+}
+.fullscreen-controls i {
+    font-size: 1.2em;
+    color: #555;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.fullscreen-controls i:hover {
+    color: #000;
+    background-color: #fff;
+}
+#exit-fullscreen-button {
+    display: none; /* Hidden by default */
+}
+
+
 .data-table-container {
     height: 35%;
     display: flex;
@@ -148,7 +175,6 @@ html, body {
 
 .data-table-summary {
     display: flex;
-    /* justify-content: space-between; */
     align-items: center;
     padding: 0.5em 1em;
     background-color: #e9ecef;
@@ -164,17 +190,16 @@ html, body {
     color: #333;
     /* Don't grow, let breadcrumbs take space */
     flex-shrink: 0;
-    margin-left: auto; /* <-- PUSH TOTALS RIGHT */
+    margin-left: auto; /* Push totals to the right */
 }
 .summary-item strong {
     color: #000;
 }
 
-/* NEW: Download Button Styles */
+/* Download Button Styles */
 .summary-controls {
     flex-shrink: 0;
-    /* margin-left: auto; */ /* <-- REMOVED MARGIN */
-    padding: 0; /* <-- ADJUSTED PADDING */
+    padding: 0;
 }
 
 #download-csv-button {
@@ -186,7 +211,6 @@ html, body {
 #download-csv-button:hover {
     color: #005a9e;
 }
-/* END NEW */
 
 .table-wrapper {
     overflow-y: auto;
@@ -199,7 +223,7 @@ html, body {
     font-size: 0.9em;
 }
 
-/* NEW: Table Header Styles */
+/* Table Header Styles */
 #data-table th {
     background-color: #f8f9fa;
     border-bottom: 2px solid #ddd;
@@ -210,7 +234,6 @@ html, body {
     position: sticky;
     top: 0;
 }
-/* END NEW */
 
 
 #data-table td {
@@ -225,11 +248,9 @@ html, body {
 #data-table td:last-child {
     border-right: none;
 }
-/* NEW: Table Header Last Child */
 #data-table th:last-child {
     border-right: none;
 }
-/* END NEW */
 
 #data-table tr:hover {
     background-color: #f9f9f9;
@@ -282,7 +303,7 @@ html, body {
 .properties-section { flex-grow: 1; overflow-y: auto; } /* Let properties section grow */
 .controls-section, .legend-section { flex-shrink: 0; } /* Prevent controls and legend from shrinking */
 
-/* --- NEW: Legend Styles --- */
+/* --- Legend Styles --- */
 .legend-section {
     background-color: #f8f9fa;
     border-top: 1px solid #ddd;
@@ -361,6 +382,21 @@ html, body {
     background-color: white;
 }
 
+/* New styles for radio button layout */
+.radio-group {
+    display: flex;
+    gap: 1.5em; /* Space between options */
+}
+.radio-group input[type="radio"] {
+    margin-right: 0.3em;
+}
+.radio-group label {
+    display: inline; /* Keep label next to radio */
+    font-size: 1em;
+    margin-bottom: 0;
+    color: #333;
+}
+
 .selected {
     border-width: 4px;
     border-color: #f1c40f;
@@ -393,3 +429,6 @@ html, body {
     padding: 15px;
     label: data(id); /* Display the community ID as the box label */
 }
+
+
+/* --- REMOVED All body.fullscreen-mode styles --- */
