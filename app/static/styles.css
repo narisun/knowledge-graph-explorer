@@ -1,4 +1,3 @@
-/* app/static/styles.css */
 html, body {
     margin: 0;
     padding: 0;
@@ -110,27 +109,6 @@ html, body {
 #timescale-label {
     margin-left: 10px;
     font-weight: bold;
-}
-
-.breadcrumb-container {
-    display: none; /* <-- REVIEW: This is hidden, is this intended? */
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.25em;
-    /* Allow breadcrumbs to take up space */
-    flex-grow: 1;
-}
-
-.breadcrumb-value {
-    padding: 0.2em 0.6em;
-    border-radius: 4px;
-    font-weight: bold;
-    font-size: 0.9em;
-}
-.breadcrumb-separator {
-    margin: 0 0.25em;
-    color: #aaa;
-    font-weight: normal;
 }
 
 #cy {

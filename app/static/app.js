@@ -1,4 +1,3 @@
-// app/static/app.js
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof cytoscape('core', 'popperRef') === 'undefined') {
         cytoscape.use(cytoscapePopper);
@@ -14,7 +13,6 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const EDGE_PROPERTIES_API_URL_TEMPLATE = '/api/edges/{edge_id}/properties';
 
     let currentQuery = {};
-    let clickedNodesHistory = {};
 
     // --- Element References ---
     const cyContainer = document.getElementById('cy');
@@ -25,7 +23,6 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     const edgeLengthSlider = document.getElementById('edge-length-slider');
     const nodeSpacingSlider = document.getElementById('node-spacing-slider');
     const queryTitle = document.getElementById('query-title');
-    const breadcrumbTrail = document.getElementById('breadcrumb-trail');
     const textSearchInput = document.getElementById('text-search-input');
     const limitInput = document.getElementById('limit-input');
     const searchButton = document.getElementById('search-button');
@@ -64,32 +61,6 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         return (yiq >= 128) ? '#000000' : '#ffffff';
     }
     
-    function updateBreadcrumbTrail() {
-        if (!breadcrumbTrail) return;
-        breadcrumbTrail.innerHTML = ''; // Clear previous breadcrumbs
-    
-        const historyEntries = Object.entries(clickedNodesHistory);
-    
-        historyEntries.forEach(([type, nodeInfo], index) => {
-            const valueSpan = document.createElement('span');
-            valueSpan.className = 'breadcrumb-value';
-            valueSpan.textContent = nodeInfo.name;
-            
-            const color = getColorForLabel(type);
-            valueSpan.style.backgroundColor = color;
-            valueSpan.style.color = getReadableTextColor(color);
-    
-            breadcrumbTrail.appendChild(valueSpan);
-    
-            if (index < historyEntries.length - 1) {
-                const separator = document.createElement('span');
-                separator.className = 'breadcrumb-separator';
-                separator.textContent = '/';
-                breadcrumbTrail.appendChild(separator);
-            }
-        });
-    }
-
     // --- Data Table Population ---
     function populateDataTable(records, keys) {
         // Clear old header and body
@@ -178,9 +149,19 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
         // 3. Create and Download Blob
         const csvContent = "data:text/csv;charset=utf-8," + csv.join('\n');
         const encodedUri = encodeURI(csvContent);
+        
+        // --- Create Dynamic Filename ---
+        let baseName = (currentQuery.display_name || 'Export').replace(/\s+/g, '');
+        const searchText = textSearchInput.value.replace(/\s+/g, '');
+        if (searchText) {
+            baseName += '-' + searchText;
+        }
+        const fileName = baseName + '.csv';
+        // --- End Dynamic Filename ---
+
         const link = document.createElement('a');
         link.setAttribute('href', encodedUri);
-        link.setAttribute('download', 'graph_data_export.csv');
+        link.setAttribute('download', fileName); // <-- Use the new dynamic filename
         document.body.appendChild(link);
         
         link.click(); // This will download the data
@@ -460,8 +441,6 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     async function loadGraph(query) {
         currentQuery = query;
         labelColorMap = query.colors || {}; // Load the static color map
-        clickedNodesHistory = {};
-        updateBreadcrumbTrail();
         try { setActiveQueryKey(query.name); } catch(e) {}
         cy.elements().remove();
         propertiesTitle.textContent = "Properties";
@@ -601,7 +580,6 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
     cy.on('dbltap', 'node', async function(evt) {
         clearTimeout(tapTimeout); // Cancel the single-tap action
         const node = evt.target;
-        const nodeType = node.data('label'); // Get nodeType early
 
         // 1. Check if the node is already expanded.
         const isExpanded = node.data('_expanded');
@@ -617,41 +595,39 @@ function setActiveQueryKey(key){ const i=document.getElementById('current-query-
             // 2. Mark this node as collapsed
             node.data('_expanded', false);
 
-            // 3. Prune the breadcrumb history
-            //    This finds the node's type in the history and removes it and all entries after it.
-            const existingNodeTypes = Object.keys(clickedNodesHistory);
-            const clickedIndex = existingNodeTypes.indexOf(nodeType);
-        
-            if (clickedIndex > -1) {
-                const newHistory = {};
-                // We keep everything *up to* (but not including) the clicked node's type
-                for (let i = 0; i < clickedIndex; i++) { 
-                    const type = existingNodeTypes[i];
-                    newHistory[type] = clickedNodesHistory[type];
-                }
-                clickedNodesHistory = newHistory;
-                updateBreadcrumbTrail(); // Update the UI
-            }
-
         } else {
-            // --- EXPAND LOGIC (Original logic) ---
+            // --- EXPAND LOGIC (REBUILT) ---
             
             const nodeId = node.id(); // This is the synthetic ID (e.g., "rel_node")
-            const nodeName = node.data(currentQuery.caption_property) || node.data('name');
-            const originalElementId = node.data('original_element_id') || node.id(); 
+            const nodeType = node.data('label');
+            
+            // --- Build history DYNAMICALLY from predecessors ---
+            const pathHistory = {};
+            
+            // *** THE FIX: Use .predecessors() not .ancestors() ***
+            // .predecessors() finds graph-theory parents by traversing edges.
+            // .ancestors() is for compound nodes (nodes inside nodes).
+            const predecessors = node.predecessors('node'); 
+            
+            predecessors.forEach(predecessor => {
+                const label = predecessor.data('label');
+                // Use the real_id (original_element_id) for the query
+                const real_id = predecessor.data('original_element_id') || predecessor.id(); 
+                if (label && real_id) {
+                    pathHistory[label] = { real_id: real_id };
+                }
+            });
+            // --- End dynamic history build ---
 
-            // Add this node to the history
-            clickedNodesHistory[nodeType] = { id: nodeId, name: nodeName, real_id: originalElementId };
-            updateBreadcrumbTrail();
-        
-            // Build history params using the REAL IDs
-            const historyParams = Object.entries(clickedNodesHistory)
+            // Build history params string from the dynamic path
+            const historyParams = Object.entries(pathHistory)
                 .map(([type, nodeInfo]) => `${encodeURIComponent(type)}_node_id=${encodeURIComponent(nodeInfo.real_id)}`)
                 .join('&');
-        
+
             const months = parseInt(timescaleSlider.value);
             
             // Call the API using the SYNTHETIC ID (nodeId) in the URL
+            // The backend will parse this nodeId to get the "real_node_id" for the $node_id param
             let neighborsUrl = NEIGHBORS_API_URL_TEMPLATE.replace('{node_id}', nodeId) 
                 + `?limit=10&node_type=${nodeType}&query_key=${encodeURIComponent(document.getElementById('current-query-key')?.value || '')}&months=${months}`;
             

@@ -1,4 +1,3 @@
-# app/main.py
 import logging
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.templating import Jinja2Templates
