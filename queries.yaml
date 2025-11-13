@@ -13,7 +13,6 @@ client_360_view:
     Client: "#0079c1"  # Blue (Start)
     DepositProduct: "#f6bd16" # Yellow
     Flow: "#61ddaa" # Green
-    Channel: "#7262fd" # Purple
     PaymentProduct: "#f08bb4" # Pink
     FinancialInstitution: "#78d3f8" # Light Blue
     Prospect: "#f6903d" # Orange (End)
@@ -29,7 +28,6 @@ client_360_view:
     WHERE ($text_search IS NULL OR c.name CONTAINS $text_search OR c.clientId = $text_search)
     MATCH (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp)
     MATCH (agg)-[:FOR_FLOW]->(f)
-    MATCH (agg)-[:FOR_CHANNEL]->(ch)
     MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
     MATCH (agg)-[:FOR_FI]->(fi)
     MATCH (agg)-[:FOR_PROSPECT]->(p)
@@ -37,7 +35,6 @@ client_360_view:
       c.name AS Client,
       dp.name AS DepProduct,
       f.direction AS Flow,
-      ch.name AS Channel,
       pp.name AS PayProduct,
       fi.name AS FI,
       p.name AS Prospect,
@@ -91,44 +88,24 @@ client_360_view:
       WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       MATCH (agg)-[:FOR_FLOW]->(f)
-      MATCH (agg)-[:FOR_CHANNEL]->(ch)
+      MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
       WHERE elementId(f) = $node_id
         AND elementId(dp) = $DepositProduct_node_id
         AND elementId(c) = $Client_node_id
         AND agg.monthId IN validMonths
-      WITH f, ch, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
-      SET ch.totalAmount = totalAmount, ch.txCount = txCount
-      SET ch.display_name = ch.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
-      WITH f, ch, totalAmount, txCount
-      CALL apoc.create.vRelationship(f, 'AGG_TO', {totalAmount: totalAmount, txCount: txCount}, ch) YIELD rel
-      RETURN f, rel, ch
-
-    Channel: >
-      WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
-      MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
-      MATCH (agg)-[:FOR_FLOW]->(f)
-      MATCH (agg)-[:FOR_CHANNEL]->(ch)
-      MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
-      WHERE elementId(ch) = $node_id
-        AND elementId(f) = $Flow_node_id
-        AND elementId(dp) = $DepositProduct_node_id
-        AND elementId(c) = $Client_node_id
-        AND agg.monthId IN validMonths
-      WITH ch, pp, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
+      WITH f, pp, sum(agg.totalAmount) AS totalAmount, sum(agg.txCount) AS txCount
       SET pp.totalAmount = totalAmount, pp.txCount = txCount
       SET pp.display_name = pp.name + ' (' + txCount + ' txns, $' + apoc.number.format(totalAmount) + ')'
-      WITH ch, pp, totalAmount, txCount
-      CALL apoc.create.vRelationship(ch, 'AGG_TO', {totalAmount: totalAmount, txCount: txCount}, pp) YIELD rel
-      RETURN ch, rel, pp
+      WITH f, pp, totalAmount, txCount
+      CALL apoc.create.vRelationship(f, 'AGG_TO', {totalAmount: totalAmount, txCount: txCount}, pp) YIELD rel
+      RETURN f, rel, pp
 
     PaymentProduct: >
       WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       MATCH (agg)-[:FOR_FLOW]->(f)
-      MATCH (agg)-[:FOR_CHANNEL]->(ch)
       MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
       WHERE elementId(pp) = $node_id
-        AND elementId(ch) = $Channel_node_id
         AND elementId(f) = $Flow_node_id
         AND elementId(dp) = $DepositProduct_node_id
         AND elementId(c) = $Client_node_id
@@ -145,13 +122,11 @@ client_360_view:
       WITH [i IN range(0, toInteger($months) - 1) | substring(toString(date() - duration({months: i})), 0, 7)] AS validMonths
       MATCH (c:Client)<-[:FOR_CLIENT]-(agg:AggTx)-[:FOR_DEPOSIT_PRODUCT]->(dp)
       MATCH (agg)-[:FOR_FLOW]->(f)
-      MATCH (agg)-[:FOR_CHANNEL]->(ch)
       MATCH (agg)-[:FOR_PAYMENT_PRODUCT]->(pp)
       MATCH (agg)-[:FOR_FI]->(fi)
       MATCH (agg)-[:FOR_PROSPECT]->(p)
       WHERE elementId(fi) = $node_id
         AND elementId(pp) = $PaymentProduct_node_id
-        AND elementId(ch) = $Channel_node_id
         AND elementId(f) = $Flow_node_id
         AND elementId(dp) = $DepositProduct_node_id
         AND elementId(c) = $Client_node_id

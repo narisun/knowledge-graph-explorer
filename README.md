@@ -1,3 +1,4 @@
+````markdown
 -----
 
 # Knowledge Graph Explorer
@@ -26,7 +27,7 @@ First, clone the project from GitHub to your local machine:
 ```bash
 git clone <your-repository-url>
 cd knowledge-graph-explorer
-```
+````
 
 ### 2\. Create and Activate a Python Virtual Environment
 
@@ -122,28 +123,28 @@ This sample data includes all 20 rows of test data to fully populate the `client
 
 ### 1\. Full Sample Data
 
-| Client | DepProduct | Flow | Channel | PayProduct | FI | Prospect | totalAmount | txCount | monthId |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| Client A | CA | Sent | OLBB | Wire | Chase | Prospect X | 10,000 | 5 | 2025-10 |
-| Client A | CA | Sent | OLBB | Wire | Wells Fargo | Prospect Y | 5,000 | 2 | 2025-10 |
-| Client A | CA | Sent | OLBB | EFT | Chase | Prospect X | 3,000 | 3 | 2025-09 |
-| Client A | CA | Received | ABM | Cheque | Chase | Prospect X | 2,000 | 1 | 2025-09 |
-| Client A | BPRA | Sent | OLBB | Wire | Chase | Prospect Y | 8,000 | 4 | 2025-08 |
-| Client B | CA | Sent | ABM | EFT | Wells Fargo | Prospect Z | 4,000 | 2 | 2025-10 |
-| Client B | CA | Received | Mobile | Cheque | BMO | Prospect X | 12,000 | 10 | 2025-10 |
-| Client B | GIC | Received | OLBB | ACH | RBC | Prospect Z | 88,000 | 1 | 2025-10 |
-| Client C | SA | Sent | OLBB | ACH | Chase | Prospect Z | 250,000 | 20 | 2025-10 |
-| Client C | SA | Received | Mobile | ACH | BMO | Prospect A | 50,000 | 5 | 2025-09 |
-| Client C | CA | Sent | Mobile | ACH | Chase | Prospect A | 72,000 | 15 | 2025-10 |
-| Client C | CA | Sent | OLBB | ACH | Chase | Prospect A | 120,000 | 22 | 2025-08 |
-| Client C | SA | Received | ABM | Cheque | BMO | Prospect Z | 6,500 | 2 | 2025-07 |
-| Client D | SA | Sent | Mobile | Wire | Citi | Prospect B | 1,200,000 | 150 | 2025-10 |
-| Client D | SA | Received | OLBB | ACH | Citi | Prospect A | 750,000 | 80 | 2025-10 |
-| Client A | CA | Sent | OLBB | Wire | Chase | Prospect X | 15,000 | 8 | 2025-07 |
-| Client A | BPRA | Sent | ABM | EFT | Wells Fargo | Prospect Y | 500 | 1 | 2025-06 |
-| Client A | CA | Sent | Mobile | ACH | Wells Fargo | Prospect X | 4,200 | 12 | 2025-09 |
-| Client A | BPRA | Sent | OLBB | Wire | Chase | Prospect Y | 300 | 1 | 2024-05 |
-| Client E | SA | Sent | OLBB | Wire | Citi | Prospect X | 1,000,000 | 1 | 2025-10 |
+| Client | DepProduct | Flow | PayProduct | FI | Prospect | totalAmount | txCount | monthId |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Client A | CA | Sent | Wire | Chase | Prospect X | 10,000 | 5 | 2025-10 |
+| Client A | CA | Sent | Wire | Wells Fargo | Prospect Y | 5,000 | 2 | 2025-10 |
+| Client A | CA | Sent | EFT | Chase | Prospect X | 3,000 | 3 | 2025-09 |
+| Client A | CA | Received | Cheque | Chase | Prospect X | 2,000 | 1 | 2025-09 |
+| Client A | BPRA | Sent | Wire | Chase | Prospect Y | 8,000 | 4 | 2025-08 |
+| Client B | CA | Sent | EFT | Wells Fargo | Prospect Z | 4,000 | 2 | 2025-10 |
+| Client B | CA | Received | Cheque | BMO | Prospect X | 12,000 | 10 | 2025-10 |
+| Client B | GIC | Received | ACH | RBC | Prospect Z | 88,000 | 1 | 2025-10 |
+| Client C | SA | Sent | ACH | Chase | Prospect Z | 250,000 | 20 | 2025-10 |
+| Client C | SA | Received | ACH | BMO | Prospect A | 50,000 | 5 | 2025-09 |
+| Client C | CA | Sent | ACH | Chase | Prospect A | 72,000 | 15 | 2025-10 |
+| Client C | CA | Sent | ACH | Chase | Prospect A | 120,000 | 22 | 2025-08 |
+| Client C | SA | Received | Cheque | BMO | Prospect Z | 6,500 | 2 | 2025-07 |
+| Client D | SA | Sent | Wire | Citi | Prospect B | 1,200,000 | 150 | 2025-10 |
+| Client D | SA | Received | ACH | Citi | Prospect A | 750,000 | 80 | 2025-10 |
+| Client A | CA | Sent | Wire | Chase | Prospect X | 15,000 | 8 | 2025-07 |
+| Client A | BPRA | Sent | EFT | Wells Fargo | Prospect Y | 500 | 1 | 2025-06 |
+| Client A | CA | Sent | ACH | Wells Fargo | Prospect X | 4,200 | 12 | 2025-09 |
+| Client A | BPRA | Sent | Wire | Chase | Prospect Y | 300 | 1 | 2024-05 |
+| Client E | SA | Sent | Wire | Citi | Prospect X | 1,000,000 | 1 | 2025-10 |
 
 ### 2\. Consolidated Neo4j Cypher Load Script
 
@@ -156,7 +157,6 @@ MATCH (n:Client) DETACH DELETE n;
 MATCH (n:Prospect) DETACH DELETE n;
 MATCH (n:DepositProduct) DETACH DELETE n;
 MATCH (n:Flow) DETACH DELETE n;
-MATCH (n:Channel) DETACH DELETE n;
 MATCH (n:PaymentProduct) DETACH DELETE n;
 MATCH (n:FinancialInstitution) DETACH DELETE n;
 
@@ -174,10 +174,6 @@ MERGE (:DepositProduct {name: 'GIC'});
 
 MERGE (:Flow {direction: 'Sent'});
 MERGE (:Flow {direction: 'Received'});
-
-MERGE (:Channel {name: 'OLBB'});
-MERGE (:Channel {name: 'ABM'});
-MERGE (:Channel {name: 'Mobile'});
 
 MERGE (:PaymentProduct {name: 'Wire'});
 MERGE (:PaymentProduct {name: 'EFT'});
@@ -198,103 +194,106 @@ MERGE (:Prospect {prospectId: 'ProspectB', name: 'Prospect B'});
 
 // --- Create ALL 20 Aggregation Fact Nodes ---
 
-// Row 1: Client A, CA, Sent, OLBB, Wire, Chase, Prospect X, 10000, 5, 2025-10
-MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectX'})
+// Row 1: Client A, CA, Sent, Wire, Chase, Prospect X, 10000, 5, 2025-10
+MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectX'})
 CREATE (agg:AggTx {totalAmount: 10000, txCount: 5, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 2: Client A, CA, Sent, OLBB, Wire, Wells Fargo, Prospect Y, 5000, 2, 2025-10
-MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Wells Fargo'}), (p:Prospect {prospectId: 'ProspectY'})
+// Row 2: Client A, CA, Sent, Wire, Wells Fargo, Prospect Y, 5000, 2, 2025-10
+MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Wells Fargo'}), (p:Prospect {prospectId: 'ProspectY'})
 CREATE (agg:AggTx {totalAmount: 5000, txCount: 2, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 3: Client A, CA, Sent, OLBB, EFT, Chase, Prospect X, 3000, 3, 2025-09
-MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'EFT'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectX'})
+// Row 3: Client A, CA, Sent, EFT, Chase, Prospect X, 3000, 3, 2025-09
+MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'EFT'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectX'})
 CREATE (agg:AggTx {totalAmount: 3000, txCount: 3, monthId: '2025-09'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 4: Client A, CA, Received, ABM, Cheque, Chase, Prospect X, 2000, 1, 2025-09
-MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Received'}), (ch:Channel {name: 'ABM'}), (pp:PaymentProduct {name: 'Cheque'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectX'})
+// Row 4: Client A, CA, Received, Cheque, Chase, Prospect X, 2000, 1, 2025-09
+MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Received'}), (pp:PaymentProduct {name: 'Cheque'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectX'})
 CREATE (agg:AggTx {totalAmount: 2000, txCount: 1, monthId: '2025-09'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 5: Client A, BPRA, Sent, OLBB, Wire, Chase, Prospect Y, 8000, 4, 2025-08
-MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'BPRA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectY'})
+// Row 5: Client A, BPRA, Sent, Wire, Chase, Prospect Y, 8000, 4, 2025-08
+MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'BPRA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectY'})
 CREATE (agg:AggTx {totalAmount: 8000, txCount: 4, monthId: '2025-08'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 6: Client B, CA, Sent, ABM, EFT, Wells Fargo, Prospect Z, 4000, 2, 2025-10
-MATCH (c:Client {clientId: 'ClientB'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'ABM'}), (pp:PaymentProduct {name: 'EFT'}), (fi:FinancialInstitution {name: 'Wells Fargo'}), (p:Prospect {prospectId: 'ProspectZ'})
+// Row 6: Client B, CA, Sent, EFT, Wells Fargo, Prospect Z, 4000, 2, 2025-10
+MATCH (c:Client {clientId: 'ClientB'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'EFT'}), (fi:FinancialInstitution {name: 'Wells Fargo'}), (p:Prospect {prospectId: 'ProspectZ'})
 CREATE (agg:AggTx {totalAmount: 4000, txCount: 2, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 7: Client B, CA, Received, Mobile, Cheque, BMO, Prospect X
-MATCH (c:Client {clientId: 'ClientB'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Received'}), (ch:Channel {name: 'Mobile'}), (pp:PaymentProduct {name: 'Cheque'}), (fi:FinancialInstitution {name: 'BMO'}), (p:Prospect {prospectId: 'ProspectX'})
+// Row 7: Client B, CA, Received, Cheque, BMO, Prospect X
+MATCH (c:Client {clientId: 'ClientB'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Received'}), (pp:PaymentProduct {name: 'Cheque'}), (fi:FinancialInstitution {name: 'BMO'}), (p:Prospect {prospectId: 'ProspectX'})
 CREATE (agg:AggTx {totalAmount: 12000, txCount: 10, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 8: Client B, GIC, Received, OLBB, ACH, RBC, Prospect Z
-MATCH (c:Client {clientId: 'ClientB'}), (dp:DepositProduct {name: 'GIC'}), (f:Flow {direction: 'Received'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'RBC'}), (p:Prospect {prospectId: 'ProspectZ'})
+// Row 8: Client B, GIC, Received, ACH, RBC, Prospect Z
+MATCH (c:Client {clientId: 'ClientB'}), (dp:DepositProduct {name: 'GIC'}), (f:Flow {direction: 'Received'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'RBC'}), (p:Prospect {prospectId: 'ProspectZ'})
 CREATE (agg:AggTx {totalAmount: 88000, txCount: 1, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 9: Client C, SA, Sent, OLBB, ACH, Chase, Prospect Z
-MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectZ'})
+// Row 9: Client C, SA, Sent, ACH, Chase, Prospect Z
+MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectZ'})
 CREATE (agg:AggTx {totalAmount: 250000, txCount: 20, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 10: Client C, SA, Received, Mobile, ACH, BMO, Prospect A
-MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Received'}), (ch:Channel {name: 'Mobile'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'BMO'}), (p:Prospect {prospectId: 'ProspectA'})
+// Row 10: Client C, SA, Received, ACH, BMO, Prospect A
+MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Received'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'BMO'}), (p:Prospect {prospectId: 'ProspectA'})
 CREATE (agg:AggTx {totalAmount: 50000, txCount: 5, monthId: '2025-09'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 11: Client C, CA, Sent, Mobile, ACH, Chase, Prospect A
-MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'Mobile'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectA'})
+// Row 11: Client C, CA, Sent, ACH, Chase, Prospect A
+MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectA'})
 CREATE (agg:AggTx {totalAmount: 72000, txCount: 15, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 12: Client C, CA, Sent, OLBB, ACH, Chase, Prospect A
-MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectA'})
+// Row 12: Client C, CA, Sent, ACH, Chase, Prospect A
+MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectA'})
 CREATE (agg:AggTx {totalAmount: 120000, txCount: 22, monthId: '2025-08'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 13: Client C, SA, Received, ABM, Cheque, BMO, Prospect Z
-MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Received'}), (ch:Channel {name: 'ABM'}), (pp:PaymentProduct {name: 'Cheque'}), (fi:FinancialInstitution {name: 'BMO'}), (p:Prospect {prospectId: 'ProspectZ'})
+// Row 13: Client C, SA, Received, Cheque, BMO, Prospect Z
+MATCH (c:Client {clientId: 'ClientC'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Received'}), (pp:PaymentProduct {name: 'Cheque'}), (fi:FinancialInstitution {name: 'BMO'}), (p:Prospect {prospectId: 'ProspectZ'})
 CREATE (agg:AggTx {totalAmount: 6500, txCount: 2, monthId: '2025-07'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 14: Client D, SA, Sent, Mobile, Wire, Citi, Prospect B
-MATCH (c:Client {clientId: 'ClientD'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'Mobile'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Citi'}), (p:Prospect {prospectId: 'ProspectB'})
+// Row 14: Client D, SA, Sent, Wire, Citi, Prospect B
+MATCH (c:Client {clientId: 'ClientD'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Citi'}), (p:Prospect {prospectId: 'ProspectB'})
 CREATE (agg:AggTx {totalAmount: 1200000, txCount: 150, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 15: Client D, SA, Received, OLBB, ACH, Citi, Prospect A
-MATCH (c:Client {clientId: 'ClientD'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Received'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Citi'}), (p:Prospect {prospectId: 'ProspectA'})
+// Row 15: Client D, SA, Received, ACH, Citi, Prospect A
+MATCH (c:Client {clientId: 'ClientD'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Received'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Citi'}), (p:Prospect {prospectId: 'ProspectA'})
 CREATE (agg:AggTx {totalAmount: 750000, txCount: 80, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 16: Client A, CA, Sent, OLBB, Wire, Chase, Prospect X
-MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectX'})
+// Row 16: Client A, CA, Sent, Wire, Chase, Prospect X
+MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectX'})
 CREATE (agg:AggTx {totalAmount: 15000, txCount: 8, monthId: '2025-07'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 17: Client A, BPRA, Sent, ABM, EFT, Wells Fargo, Prospect Y
-MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'BPRA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'ABM'}), (pp:PaymentProduct {name: 'EFT'}), (fi:FinancialInstitution {name: 'Wells Fargo'}), (p:Prospect {prospectId: 'ProspectY'})
+// Row 17: Client A, BPRA, Sent, EFT, Wells Fargo, Prospect Y
+MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'BPRA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'EFT'}), (fi:FinancialInstitution {name: 'Wells Fargo'}), (p:Prospect {prospectId: 'ProspectY'})
 CREATE (agg:AggTx {totalAmount: 500, txCount: 1, monthId: '2025-06'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 18: Client A, CA, Sent, Mobile, ACH, Wells Fargo, Prospect X
-MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'Mobile'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Wells Fargo'}), (p:Prospect {prospectId: 'ProspectX'})
+// Row 18: Client A, CA, Sent, ACH, Wells Fargo, Prospect X
+MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'CA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'ACH'}), (fi:FinancialInstitution {name: 'Wells Fargo'}), (p:Prospect {prospectId: 'ProspectX'})
 CREATE (agg:AggTx {totalAmount: 4200, txCount: 12, monthId: '2025-09'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 19: Client E, SA, Sent, OLBB, Wire, Citi, Prospect X
-MATCH (c:Client {clientId: 'ClientE'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Citi'}), (p:Prospect {prospectId: 'ProspectX'})
+// Row 19: Client E, SA, Sent, Wire, Citi, Prospect X
+MATCH (c:Client {clientId: 'ClientE'}), (dp:DepositProduct {name: 'SA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Citi'}), (p:Prospect {prospectId: 'ProspectX'})
 CREATE (agg:AggTx {totalAmount: 1000000, txCount: 1, monthId: '2025-10'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
 
-// Row 20: Client A, BPRA, Sent, OLBB, Wire, Chase, Prospect Y
-MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'BPRA'}), (f:Flow {direction: 'Sent'}), (ch:Channel {name: 'OLBB'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectY'})
+// Row 20: Client A, BPRA, Sent, Wire, Chase, Prospect Y
+MATCH (c:Client {clientId: 'ClientA'}), (dp:DepositProduct {name: 'BPRA'}), (f:Flow {direction: 'Sent'}), (pp:PaymentProduct {name: 'Wire'}), (fi:FinancialInstitution {name: 'Chase'}), (p:Prospect {prospectId: 'ProspectY'})
 CREATE (agg:AggTx {totalAmount: 300, txCount: 1, monthId: '2024-05'})
-CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_CHANNEL]->(ch), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+CREATE (agg)-[:FOR_CLIENT]->(c), (agg)-[:FOR_DEPOSIT_PRODUCT]->(dp), (agg)-[:FOR_FLOW]->(f), (agg)-[:FOR_PAYMENT_PRODUCT]->(pp), (agg)-[:FOR_FI]->(fi), (agg)-[:FOR_PROSPECT]->(p);
+```
+
+```
 ```
